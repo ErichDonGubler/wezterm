@@ -83,6 +83,9 @@ pub struct SshDomain {
 
     /// The path to the wezterm binary on the remote host
     pub remote_wezterm_path: Option<String>,
+    /// Override the entire `wezterm cli proxy` invocation that would otherwise
+    /// be computed from remote_wezterm_path and other information.
+    pub override_proxy_command: Option<String>,
 
     pub ssh_backend: Option<SshBackend>,
 
@@ -116,6 +119,7 @@ impl SshDomain {
                 name: format!("SSH:{host}"),
                 remote_address: host.to_string(),
                 multiplexing: SshMultiplexing::None,
+                local_echo_threshold_ms: default_local_echo_threshold_ms(),
                 ..SshDomain::default()
             });
 
@@ -123,6 +127,7 @@ impl SshDomain {
                 name: format!("SSHMUX:{host}"),
                 remote_address: host.to_string(),
                 multiplexing: SshMultiplexing::WezTerm,
+                local_echo_threshold_ms: default_local_echo_threshold_ms(),
                 ..SshDomain::default()
             });
         }

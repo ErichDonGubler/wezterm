@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Wez Furlong <wez@wezfurlong.org>"]
 edition = "2018"
 resolver = "2"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,7 +17,7 @@ env-bootstrap = { path = "../env-bootstrap" }
 libc = "0.2"
 log = "0.4"
 mux = { path = "../mux" }
-mlua = "0.8.3"
+mlua = "0.9"
 openssl = "0.10"
 portable-pty = { path = "../pty", features = ["serde_support"]}
 promise = { path = "../promise" }

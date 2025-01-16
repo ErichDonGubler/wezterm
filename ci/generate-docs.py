@@ -79,6 +79,8 @@ def load_scheme(scheme):
         "[^a-z0-9_]", "_", scheme["metadata"]["name"].lower().replace("+", "plus")
     )
 
+    if "ansi" not in scheme["colors"]:
+        raise Exception(f"scheme {scheme} is missing ansi colors!!?")
     colors = scheme["colors"]["ansi"] + scheme["colors"]["brights"]
 
     data = {
@@ -395,8 +397,16 @@ TOC = [
                 "config/lua/wezterm.procinfo",
             ),
             Gen(
+                "module: wezterm.serde",
+                "config/lua/wezterm.serde",
+            ),
+            Gen(
                 "module: wezterm.time",
                 "config/lua/wezterm.time",
+            ),
+            Gen(
+                "module: wezterm.url",
+                "config/lua/wezterm.url",
             ),
             Gen(
                 "enum: KeyAssignment",

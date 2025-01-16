@@ -150,7 +150,6 @@ impl<'a> Performer<'a> {
                 {
                     let y = self.cursor.y;
                     let is_conpty = self.state.enable_conpty_quirks;
-                    let is_alt = self.state.screen.alt_screen_is_active;
                     let screen = self.screen_mut();
                     let y = screen.phys_row(y);
 
@@ -162,14 +161,13 @@ impl<'a> Performer<'a> {
                         }
                     }
 
-                    let should_mark_wrapped = !is_alt
-                        && (!is_conpty
-                            || screen
-                                .line_mut(y)
-                                .visible_cells()
-                                .last()
-                                .map(|cell| makes_sense_to_wrap(cell.str()))
-                                .unwrap_or(false));
+                    let should_mark_wrapped = !is_conpty
+                        || screen
+                            .line_mut(y)
+                            .visible_cells()
+                            .last()
+                            .map(|cell| makes_sense_to_wrap(cell.str()))
+                            .unwrap_or(false);
                     if should_mark_wrapped {
                         screen.line_mut(y).set_last_cell_was_wrapped(true, seqno);
                     }
@@ -228,7 +226,7 @@ impl<'a> Performer<'a> {
     /// <https://github.com/wez/wezterm/issues/2442>
     fn pop_tmux_title_state(&mut self) {
         if let Some(title) = self.accumulating_title.take() {
-            log::warn!("ST never received for pending tmux title escape sequence: {title:?}");
+            log::debug!("ST never received for pending tmux title escape sequence: {title:?}");
         }
     }
 
@@ -687,7 +685,7 @@ impl<'a> Performer<'a> {
                 self.current_mouse_buttons.clear();
                 self.cursor_visible = true;
                 self.g0_charset = CharSet::Ascii;
-                self.g1_charset = CharSet::DecLineDrawing;
+                self.g1_charset = CharSet::Ascii;
                 self.shift_out = false;
                 self.newline_mode = false;
                 self.tabs = TabStop::new(self.screen().physical_cols, 8);
@@ -700,12 +698,12 @@ impl<'a> Performer<'a> {
                 self.accumulating_title.take();
 
                 self.screen.full_reset();
+                self.screen.activate_alt_screen(seqno);
+                self.erase_in_display(EraseInDisplay::EraseDisplay);
                 self.screen.activate_primary_screen(seqno);
                 self.erase_in_display(EraseInDisplay::EraseScrollback);
                 self.erase_in_display(EraseInDisplay::EraseDisplay);
-                if let Some(handler) = self.alert_handler.as_mut() {
-                    handler.alert(Alert::PaletteChanged);
-                }
+                self.palette_did_change();
             }
 
             _ => {
@@ -941,10 +939,8 @@ impl<'a> Performer<'a> {
                         }
                     }
                 }
-                if let Some(handler) = self.alert_handler.as_mut() {
-                    handler.alert(Alert::PaletteChanged);
-                }
-                self.make_all_lines_dirty();
+                self.implicit_palette_reset_if_same_as_configured();
+                self.palette_did_change();
             }
 
             OperatingSystemCommand::ResetColors(colors) => {
@@ -964,9 +960,8 @@ impl<'a> Performer<'a> {
                         }
                     }
                 }
-                if let Some(handler) = self.alert_handler.as_mut() {
-                    handler.alert(Alert::PaletteChanged);
-                }
+                self.implicit_palette_reset_if_same_as_configured();
+                self.palette_did_change();
             }
 
             OperatingSystemCommand::ChangeDynamicColors(first_color, colors) => {
@@ -1020,10 +1015,8 @@ impl<'a> Performer<'a> {
                     }
                     idx += 1;
                 }
-                if let Some(handler) = self.alert_handler.as_mut() {
-                    handler.alert(Alert::PaletteChanged);
-                }
-                self.make_all_lines_dirty();
+                self.implicit_palette_reset_if_same_as_configured();
+                self.palette_did_change();
             }
 
             OperatingSystemCommand::ResetDynamicColor(color) => {
@@ -1059,10 +1052,8 @@ impl<'a> Performer<'a> {
                         | DynamicColorNumber::TektronixCursorColor => {}
                     }
                 }
-                if let Some(handler) = self.alert_handler.as_mut() {
-                    handler.alert(Alert::PaletteChanged);
-                }
-                self.make_all_lines_dirty();
+                self.implicit_palette_reset_if_same_as_configured();
+                self.palette_did_change();
             }
         }
     }

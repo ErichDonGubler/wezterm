@@ -4,13 +4,15 @@ members = [
   "bidi/generate",
   "strip-ansi-escapes",
   "sync-color-schemes",
+  "deps/cairo",
   "wezterm",
   "wezterm-blob-leases",
   "wezterm-dynamic",
   "wezterm-gui",
   "wezterm-mux-server",
   "wezterm-open-url",
-  "wezterm-ssh"
+  "wezterm-ssh",
+  "wezterm-uds",
 ]
 resolver = "2"
 exclude = [
@@ -26,3 +28,7 @@ opt-level = 3
 # Disabled because it breaks builds on Windows
 #split-debuginfo = "unpacked"
 
+[patch.crates-io]
+# We use our own vendored cairo, which has minimal deps and should just
+# build via cargo.
+cairo-sys-rs = {path="deps/cairo", version="0.18.0"}

@@ -22,8 +22,411 @@ usually the best available version.
 As features stabilize some brief notes about them will accumulate here.
 
 #### Changed
+* Wayland: currently being reimplemented, it maybe more unstable than usual.
+  Please file GH issues for any problems you see.
+  Many thanks to @tzx and @tmccombs! #4777 #5781
+* [show_update_window](config/lua/config/show_update_window.md) has been
+  deprecated; it no longer has any effect and will be removed in a future
+  release.
+* X11: drag and drop is now supported for files, URLs and text. Thanks to
+  @ssiegel! #5316 #640
+* Added Unicode Symbols for Legacy Computing to the set of pixel-perfect block
+  drawing glyphs. See
+  [custom_block_glyphs](config/lua/config/custom_block_glyphs.md) for more
+  details. Thanks to @stribor14! #5051 #5169
+* Switched to the [nucleo](https://github.com/helix-editor/nucleo) fuzzy
+  matcher which produces matches that more closely match the popular `fzf`
+  program. #5532
+* The Copy Mode `Close` action no longer implicitly scrolls to the bottom.
+  This is to facilitate having a key assignment that closes copy mode without
+  adjusting the viewport position. You can compose multiple actions together using
+  `Multiple` if you wish; the default key assignments in Copy Mode use this technique
+  so that the effective behavior of the defaults remains unchanged.
+  Thanks to @LeszekSwirski! #4924 #3502
+* Improved startup performance on X11. Thanks to @blukai! #5923 #5802
+* There is now an upper bound of 999,999,999 for `scrollback_lines`. Thanks to
+  @x3ro! #5996
+* Migrated serial support to the `serial2` rust crate. This opens the door
+  to more convenient serial support going forward. Thanks to @jeevithakannan2!
+  #6411 #6460
 
+#### New
+* [wezterm.serde](config/lua/wezterm.serde/index.md) module for serialization
+  and deserialization of JSON, TOML and YAML. Thanks to @expnn! #4969
+* `wezterm ssh` now supports agent forwarding. Thanks to @Riatre! #5345
+* SSH multiplexer domains now support agent forwarding, and will automatically
+  maintain `SSH_AUTH_SOCK` to an appropriate value on the destination host,
+  depending on the value of the new
+  [mux_enable_ssh_agent](config/lua/config/mux_enable_ssh_agent.md) option.
+  ?988 #1647
+* [default_ssh_auth_sock](config/lua/config/default_ssh_auth_sock.md) option
+  to manage `SSH_AUTH_SOCK`.
+* Search mode: now supports richer line editing. Thanks to @Mrreadiness and
+  @kenchou! #5416 #3087
+* [show_close_tab_button_in_tabs](config/lua/config/show_close_tab_button_in_tabs.md)
+  option for the fancy tab bar. Thanks to @zummenix! #3818
+* wezterm-ssh now supports `ProxyUseFdPass`. Thanks to @loops! #6103 #6093
+* `PromptInputLine` now supports a optional `prompt` and `initial_value`
+  parameters. Thanks to @mgpinf and @ekorchmar! #6054 #6007
+
+#### Fixed
+* Race condition when very quickly adjusting font scale, and other improvements
+  around resizing. Thanks to @jknockel! #4876 #5032 #5033
+* macOS: wacky initial window size with external monitors or certain font
+  sizes. #4966 #4250
+* macOS: dragging non-filename data over wezterm could cause it to crash. #4771
+* New tabs spawned by the gui could spawn into the wrong domain when using
+  multiplexing together `default_domain`. Thanks to @bogdan2412! #4994
+* Linux: the `divine_process_list` fallback function used the *vmwisze*
+  rather than the intended *starttime* field to decide which process
+  was the youngest. Thanks to @crides! #5001
+* Wayland: fixed startup on Hyprland >= 0.37.0. Thanks to @fioncat! #5264 #5103
+* Wayland: updated to SCTK 0.19. Thanks to @deviant and @tmccombs! #5276 #5154 #5079 #5071
+  #4604 #5209 #5781
+* Windows: Window buttons stopped working when using `win32_system_backdrop`.
+  Thanks to @Kushagra2569! #5362 #5348
+* `wezterm cli activate-pane` now respects `unzoom_on_switch_pane`. Thanks to
+  @quantonganh! #5306 #5305
+* wezterm-ssh now correctly handles two-phase processing of `%h` tokens. Thanks
+  to @emc2314 and @wheatdog! #5163 #4503
+* We now respect line wrapping in alt-screen mode. Thanks to @eternity74! #5396
+  #3283
+* Wayland: hang when launched under ChromeOS Crostini. Thanks to @dberlin!
+  #5393 #5397
+* macOS: Fixed notch avoidance padding in full screen mode. Thanks to @mbaird!
+  #5515 #3807
+* Render invalidation issue when closing tabs other than the last tab. Thanks
+  to @Mrreadiness! #5441 #5304
+* Search mode now accepts composed input from the IME. Thanks to @kenchou! #5564
+* Quick select mode will now accept unix paths with `//` in them. #5763
+* blob leases (for image rendering) could be removed by temporary directory
+  cleaners, resulting in issues with rendering. We no longer store these
+  in a pure temporary directory; they live in a cache dir, and if someone
+  does remove or truncate these files, we now convert that error case
+  into blank frame(s). #5422 #4657
+* PaneInformation object returned `pixel_width` when asked to return the
+  `pixel_height`.
+* ssh: we now explicitly kill and reap the `ProxyCommand` associated
+  with an ssh session. Thanks to @daaku! #5494 #5479
+* `default_ssh_domains()` didn't use the default local echo threshold
+  for ssh domains. #5547
+* multiplexer: internal PKI certificate now supplements its list of
+  "Subject Alternative Names" with the list of canonical hostnames returned
+  for the local system via `getaddrinfo`. #5543
+* DECSLRM incorrectly clamped the left margin based on the terminal height
+  instead of the terminal width. Thanks to @j4james and @tmccombs! #5871 #5750
+* Scrollback position was incorrectly advanced when in alt-screen mode.
+  Thanks to @tbung and @loops! #6099 #4607 #6186
+* Wayland: Fixed potential panic on startup when monitors have changed are
+  in the process of hot plugging when wezterm starts. Thanks to @loops! #6084
+* macOS: explicitly set the window to sRGB colorspace to resolve incorrect
+  colors on non-sRGB monitors. Thanks to @rianmcguire! #6063 #5824
+* The bell would ring each window instead of just the window containing the
+  pane where the bell is ringing. Thanks to @loops! #6012 #5985
+* x11: transient errors in obtaining/setting the selection could cause
+  wezterm to exit. Thanks to @loops! #6135 #5482 #6128
+* Wayland: potential panic when working with the clipboard. Thanks to @rengare!
+  #5518
+* multiplexer: could lose track of delta updates if the display changed
+  while the current delta was being computed. Thanks to @loops! #5981
+* Plugins: normalize the plugin path to exclude trailing slashes. Thanks to
+  @joncrangle! #5883
+* zooming a tab might not work if you also recently used `pane:activate()`.
+  Thanks to @SpyMachine! #5964 #5928
+* `pane:current_working_dir.file_path` returned incorrect results for
+  paths that contained `#` or `?` characters. Thanks to @loops! #6158 #6171
+* wayland: issues with losing maximized or tiled state when switching between
+  applications. Thanks to @aliaksandr-trush! #4568 #5897
+
+#### Updated
+* Bundled conpty.dll and OpenConsole.exe to build 1.19.240130002.nupkg
+* Bundled harfbuzz to 9.0.0
+* image crate to 0.25, which means that JPEG images are now decoded via
+  [zune-jpeg](https://docs.rs/zune-jpeg/latest/zune_jpeg/), which improves
+  handling of non-conforming jpeg images. #5365
+* Color schemes: [Astrodark (Gogh)](colorschemes/a/index.md#astrodark-gogh),
+  [Blue Dolphin (Gogh)](colorschemes/b/index.md#blue-dolphin-gogh),
+  [Breadog (Gogh)](colorschemes/b/index.md#breadog-gogh),
+  [Butrin (Gogh)](colorschemes/b/index.md#butrin-gogh),
+  [City Lights (Gogh)](colorschemes/c/index.md#city-lights-gogh),
+  [CutiePro](colorschemes/c/index.md#cutiepro),
+  [Ef-Dream](colorschemes/e/index.md#ef-dream),
+  [Ef-Reverie](colorschemes/e/index.md#ef-reverie),
+  [Eldritch](colorschemes/e/index.md#eldritch),
+  [Everforest Dark Hard (Gogh)](colorschemes/e/index.md#everforest-dark-hard-gogh),
+  [Everforest Dark Medium (Gogh)](colorschemes/e/index.md#everforest-dark-medium-gogh),
+  [Everforest Dark Soft (Gogh)](colorschemes/e/index.md#everforest-dark-soft-gogh),
+  [Everforest Light Hard (Gogh)](colorschemes/e/index.md#everforest-light-hard-gogh),
+  [Everforest Light Medium (Gogh)](colorschemes/e/index.md#everforest-light-medium-gogh),
+  [Everforest Light Soft (Gogh)](colorschemes/e/index.md#everforest-light-soft-gogh),
+  [Github Light (Gogh)](colorschemes/g/index.md#github-light-gogh),
+  [Iceberg (Gogh)](colorschemes/i/index.md#iceberg-gogh),
+  [Kanagawa Dragon (Gogh)](colorschemes/k/index.md#kanagawa-dragon-gogh),
+  [kurokula](colorschemes/k/index.md#kurokula),
+  [Mellifluous](colorschemes/m/index.md#mellifluous),
+  [Miramare (Gogh)](colorschemes/m/index.md#miramare-gogh),
+  [Modus Operandi (Gogh)](colorschemes/m/index.md#modus-operandi-gogh),
+  [Modus Operandi Tinted (Gogh)](colorschemes/m/index.md#modus-operandi-tinted-gogh),
+  [Modus Vivendi (Gogh)](colorschemes/m/index.md#modus-vivendi-gogh),
+  [Modus Vivendi Tinted (Gogh)](colorschemes/m/index.md#modus-vivendi-tinted-gogh),
+  [NvimDark](colorschemes/n/index.md#nvimdark),
+  [NvimLight](colorschemes/n/index.md#nvimlight),
+  [Paper (Gogh)](colorschemes/p/index.md#paper-gogh),
+  [Quiet (Gogh)](colorschemes/q/index.md#quiet-gogh),
+  [Selenized Black (Gogh)](colorschemes/s/index.md#selenized-black-gogh),
+  [Selenized White (Gogh)](colorschemes/s/index.md#selenized-white-gogh),
+  [Seoul256 (Gogh)](colorschemes/s/index.md#seoul256-gogh),
+  [Seoul256 Light (Gogh)](colorschemes/s/index.md#seoul256-light-gogh),
+  [Sparky (Gogh)](colorschemes/s/index.md#sparky-gogh),
+  [Sugarplum](colorschemes/s/index.md#sugarplum),
+  [Vesper](colorschemes/v/index.md#vesper)
+
+### 20240203-110809-5046fc22
+
+#### Changed
+* The default for
+  [freetype_load_flags](config/lua/config/freetype_load_flags.md) is now
+  `NO_HINTING` when the dpi is >= 100, otherwise `DEFAULT`. #4902
+* `wezterm -e` will now wait for the spawned program to terminate before
+  it will itself terminate. Thanks to @vimpostor! #4535 #4523
+* Reverted the text cursor cell dimension change due to overwhelming and
+  sometimes toxic feedback. #2882
+#### New
+* We now show the Lua version in the debug overlay. Thanks to @bbkane! #4943
+* `wezterm start --new-tab` and `wezterm connect --new-tab` to request a new
+  tab rather than a new window when spawning via an existing GUI instance.
+  The new [prefer_to_spawn_tabs](config/lua/config/prefer_to_spawn_tabs.md)
+  option allows you to make this happen by default. ?4854 ?4946
+#### Fixed
+* It was not possible to specify `freetype_load_flags = 'DEFAULT'`. #4902
+* macOS: fallback fonts could select thin or otherwise unspecified font
+  attributes. #4808
+* Changing the palette via escape sequences didn't invalidate caches
+  correctly, so those escapes sequences wouldn't take effect. #4932 #2635
+* Unix: spawning a command using a relative path, with the cwd set to a
+  directory that contains a directory with the same name as the relative
+  path to the command would fail with an obscure error message. #4920
+* x11: incorrect handling of the space key when `grp:win_space_toggle`
+  was enabled via `setxkbmap`. #4910
+* `wezterm set-working-directory` and `wezterm imgcat` didn't correctly
+  apply tmux passthrough escape encoding. #4940
+* Tab bar wouldn't immediately reflect the result of calling `tab:set_title`.
+  #4941
+* Command Palette: Missing space between keycaps on macOS. #4885
+* macOS: stale/invalid cwd used when spawning new panes when shell integration
+  is NOT in use. #4811
+* Command Palette: would show default key assignments next to actions even
+  if `disable_default_key_bindings` was configured. #4724
+
+### 20240128-202157-1e552d76
+
+#### Changed
+* The default for [front_end](config/lua/config/front_end.md) is again
+  `OpenGL`.
+* The default for
+  [freetype_load_flags](config/lua/config/freetype_load_flags.md) is now
+  `NO_HINTING`. #4874
+
+#### Fixed
+* macOS: System LastResort font would be taken in preference to other fonts
+  in some cases when trying to find the fallback for bold fonts. #4877
+* The fancy tab bar could take a few moments to update after closing a tab. #4880
+* Kitty Image Protocol: fixed numerous issues. Thanks to @jonboh! #1156 #1663
+  #2084 #2422 #2761 #3918 #4233 #4847
+
+### 20240127-113634-bbcac864
+
+#### Changed
 * The default for [front_end](config/lua/config/front_end.md) is now `WebGpu`.
+* The return type of
+  [pane.get_current_working_dir](config/lua/pane/get_current_working_dir.md)
+  and [PaneInformation.current_working_dir](config/lua/PaneInformation.md)
+  has changed to the new [Url](config/lua/wezterm.url/Url.md) object, which
+  makes it easier to handle things like percent-encoding for paths with spaces
+  or non-ASCII characters. Please see the revised example on
+  [set_right_status](config/lua/window/set_right_status.md) for example usage
+  with backwards compatibility in mind. #4000
+* Added split out github short codes from the various charselect sections into
+  their own new Short Codes section.
+* CharSelect now shows emoji variations such as skin tones
+* Improved fuzzy matching performance in CharSelect
+* [PaneSelect](config/lua/keyassignment/PaneSelect.md) new modes `MoveToNewTab`,
+  `MoveToNewWindow`, and `SwapWithActiveKeepFocus`, as well as
+  `show_pane_ids=true` to show the pane ids.  #4147 #3014
+* Nightly `.deb` packages are now named `wezterm-nightly` rather than `wezterm`,
+  and are set to conflict with `wezterm`.
+* Allow `window_frame` colors now allow specifying the alpha channel value,
+  which enables transparent fancy tab bar backgrounds. ?4816 #3580 ?4311
+
+#### New
+* [wezterm imgcat](cli/imgcat.md) now has `--position`, `--no-move-cursor` and
+  `--hold` options. #3716
+* [wezterm set-working-directory](cli/set-working-directory.md) will now wrap
+  its OSC 7 escape sequence in the tmux passthru sequence when necessary. This can be
+  controlled via new `--tmux-passthru` option.
+* [wezterm imgcat](cli/imgcat.md) will now wrap the image transfer OSC escape
+  sequences in the tmux passthru sequence when necessary. This can be
+  controlled via new `--tmux-passthru` option. Note that tmux doesn't natively
+  understand these sequences, and tmux will wipe out the image when it redraws
+  the screen as part of scrolling back through its history. imgcat support in
+  tmux is very basic effort
+* [wezterm imgcat](cli/imgcat.md) will compensate for tmux and conpty, which
+  do not natively understand image protocols, and adjust the cursor position
+  in order to avoid the shell/prompt from mangling the image after it is printing.
+  Support for this has limitations and will not take effect when the new
+  `--position` argument is used. #3624
+* [wezterm imgcat](cli/imgcat.md) will now resample very large images in
+  order to increase the chances of successfully displaying an arbitrary image.
+  In addition, there are now a number of options for explicitly resizing
+  as a preprocessing step, and controlling the filtering and format used
+  by the resizing, along with showing diagnostics around the resize operation. #3264
+* Color schemes: [Aardvark Blue](colorschemes/a/index.md#aardvark-blue),
+  [alacritty](colorschemes/a/index.md),
+  [Apple System Colors](colorschemes/a/index.md#apple-system-colors),
+  [Bamboo Light](colorschemes/b/index.md#bamboo-light),
+  [Campbell (Gogh)](colorschemes/c/index.md#campbell-gogh),
+  [Ef-Arbutus](colorschemes/e/index.md#ef-arbutus),
+  [Ef-Cyprus](colorschemes/e/index.md#ef-cyprus),
+  [Ef-Day](colorschemes/e/index.md#ef-day),
+  [Ef-Deuteranopia-Dark](colorschemes/e/index.md#ef-deuteranopia-dark),
+  [Ef-Deuteranopia-Light](colorschemes/e/index.md#ef-deuteranopia-light),
+  [Ef-Duo-Dark](colorschemes/e/index.md#ef-duo-dark),
+  [Ef-Duo-Light](colorschemes/e/index.md#ef-duo-light),
+  [Ef-Elea-Dark](colorschemes/e/index.md#ef-elea-dark),
+  [Ef-Elea-Light](colorschemes/e/index.md#ef-elea-light),
+  [Ef-Frost](colorschemes/e/index.md#ef-frost),
+  [Ef-Kassio](colorschemes/e/index.md#ef-kassio),
+  [Ef-Light](colorschemes/e/index.md#ef-light),
+  [Ef-Maris-Dark](colorschemes/e/index.md#ef-maris-dark),
+  [Ef-Maris-Light](colorschemes/e/index.md#ef-maris-light),
+  [Ef-Melissa-Dark](colorschemes/e/index.md#ef-melissa-dark),
+  [Ef-Melissa-Light](colorschemes/e/index.md#ef-melissa-light),
+  [Ef-Night](colorschemes/e/index.md#ef-night),
+  [Ef-Rosa](colorschemes/e/index.md#ef-rosa),
+  [Ef-Symbiosis](colorschemes/e/index.md#ef-symbiosis),
+  [farmhouse-dark](colorschemes/f/index.md#farmhouse-dark),
+  [farmhouse-light](colorschemes/f/index.md#farmhouse-light),
+  [Firefly Traditional](colorschemes/f/index.md#firefly-traditional),
+  [flexoki-dark](colorschemes/f/index.md#flexoki-dark),
+  [flexoki-light](colorschemes/f/index.md#flexoki-light),
+  [Github Dark (Gogh)](colorschemes/g/index.md#github-dark-gogh),
+  [iTerm2 Dark Background](colorschemes/i/index.md#iterm2-dark-background),
+  [iTerm2 Default](colorschemes/i/index.md#iterm2-default),
+  [iTerm2 Light Background](colorschemes/i/index.md#iterm2-light-background),
+  [iTerm2 Pastel Dark Background](colorschemes/i/index.md#iterm2-pastel-dark-background),
+  [iTerm2 Smoooooth](colorschemes/i/index.md#iterm2-smoooooth),
+  [iTerm2 Tango Dark](colorschemes/i/index.md#iterm2-tango-dark),
+  [iTerm2 Tango Light](colorschemes/i/index.md#iterm2-tango-light),
+  [Modus-Operandi-Deuteranopia](colorschemes/m/index.md#modus-operandi-deuteranopia),
+  [Modus-Operandi-Tinted](colorschemes/m/index.md#modus-operandi-tinted),
+  [Modus-Vivendi-Deuteranopia](colorschemes/m/index.md#modus-vivendi-deuteranopia),
+  [Modus-Vivendi-Tinted](colorschemes/m/index.md#modus-vivendi-tinted),
+  [Modus-Vivendi-Tritanopia](colorschemes/m/index.md#modus-vivendi-tritanopia),
+  [Moonfly (Gogh)](colorschemes/m/index.md#moonfly-gogh),
+  [Nightfly (Gogh)](colorschemes/n/index.md#nightfly-gogh),
+  [Oxocarbon Dark (Gogh)](colorschemes/o/index.md#oxocarbon-dark-gogh),
+  [Rosé Pine Moon (base16)](colorschemes/r/index.md#rose-pine-moon-base16),
+  [Selenized Dark (Gogh)](colorschemes/s/index.md#selenized-dark-gogh),
+  [Selenized Light (Gogh)](colorschemes/s/index.md#selenized-light-gogh),
+  [Website (Gogh)](colorschemes/w/index.md#website-gogh)
+* Preliminary support for rasterizing fonts with COLR v1 glyphs, such as
+  more recent versions of Noto Color Emoji. #4148
+* [wezterm cli zoom-pane](cli/cli/zoom-pane.md). Thanks to @quantonganh! #4160
+* [InputSelector](config/lua/keyassignment/InputSelector.md) has been
+  enhanced to allow setting an alphabet for quickly launching items beyond
+  the first 10 items, as well as customizing the description/label text.
+  Thanks to @Danielkonge! #4226 #4227
+* [notification_handling](config/lua/config/notification_handling.md) to
+  control whether notifications are suppressed based on focus. #3727
+* [command_palette_rows](config/lua/config/command_palette_rows.md) to
+  control how many rows are displayed in the command palette. Thanks to
+  @exastone! #4595
+* [ToggleAlwaysOnTop](config/lua/keyassignment/ToggleAlwaysOnTop.md),
+  [ToggleAlwaysOnBottom](config/lua/keyassignment/ToggleAlwaysOnBottom.md) and
+  [SetWindowLevel](config/lua/keyassignment/SetWindowLevel.md) key assignments
+  for manipulating the window level. These are currently implemented only
+  on macOS. Thanks to @rawnly! #4567
+* Double click on the tab bar to toggle maximize/normal state. Thanks to
+  @junnplus! #3698 #3699
+* [freetype_load_target](config/lua/config/freetype_load_target.md) and
+  [freetype_render_target](config/lua/config/freetype_render_target.md) can now
+  be set to `VerticalLcd` for vertically decimated LCD displays. Thanks to
+  @xiaopengli89! #4426
+* Pressing `CTRL-[` in the launcher menu will close it. #4722
+* [pane:get_lines_as_escapes()](config/lua/pane/get_lines_as_escapes.md) to
+  retrieve text + style/formatting. #4780
+
+#### Fixed
+* Command Palette was using now-invalid Nerd Font 2.0 symbols for macOS
+  keyboard shortcuts. #3988
+* Windows: couldn't use shifted keys like `(` in the Debug Overlay. #3999
+* X11: fd leak on each call to
+  [wezterm.gui.enumerate_gpus](config/lua/wezterm.gui/enumerate_gpus.md). #3612
+* Charselect and repl recency/history were not persisted across restarts. #4047 ?4019
+* macOS: system font fallback didn't always find a workable fallback font. #4099 #849
+* F13-F24 keys are now supported. Thanks to @ovidiu-ionescu! #3937
+* Strikethrough position was not centered when setting `line_height` #4196
+* Text cursor filled the scaled-by `line_height` and `cell_width` dimensions rather
+  than the native font dimensions and looked weird when either config option was
+  not set to `1.0`. #2882
+* Using `CloseCurrentPane` could sometimes leave a stranded pane in a tab. #4030
+* Wayland: wezterm wouldn't start on Plasma 6 or newer versions of sway. Thanks
+  to @hexchain! #3996 #4322.
+* font-config: when resolving a fallback font for a text cluster like `U+3065,U+2686`
+  where no single font contains both glyphs, wezterm would fail to show a glyph
+  for either codepoint.  We now split the fallback query up and query for each
+  individual codepoint separately. #4310
+* Gogh color schemes all had the incorrect cursor foreground color. #4257
+* Windows: crash on Windows 11 when using DX 12 with the WebGpu frontend. #4279
+* macOS: Leak of NSWindow and NSView objects. Thanks to @0f-0b! #4457
+* Initial G1 state is non-conformant. Thanks to @ninjalj! #4534 #3962
+* Make RIS also clear the alternate screen. Thanks to @ninjalj! #4563
+* DECRQCRA: treat uninitialized cells as spaces. Thanks to @ninjalj! #4565
+* Clamp cursor position reported by CPR. Thanks to @ninjalj! #4564
+* Correct `SUPER` modifier key handling in kitty protocol. Thanks to @gabyx! #4605
+* macOS: honor the `window_close_confirmation` config option when quitting the
+  application. Thanks to @quantonganh! #4420 #4362
+* terminfo: added missing terminator to Sync capability. Thanks to @gpanders! #4578
+* bracketed paste escape sequences are now always stripped out of text
+  that is pasted into the terminal. This happens even if bracketed paste
+  mode is disabled. #4765
+* Sixel parser ignores P2 parameter if P1 is blank. Thanks to @joouha! #4730
+* X11: synthesize raw modifiers to resolve some issues with synthetic/injected
+  key press events experienced by Espanso. Thanks to @bew! #4151 #3840
+* `freetype_load_target` had no effect. Thanks to @dkoukola! #4775 #4770
+* Incorrect sunset / sunrise progression. Thanks to @mikyk10! #4809 #4810
+* retro tab bar indented too far on macOS when using integrated titlebar buttons.
+  Thanks to @0xdead10cd! #4505
+* x11/wayland: avoid including keysym name in deadkey compose cursor. #4511
+* Mouse wheel scrolling now works correctly when hovering over the inactive pane.
+  Thanks to @tradiff! #4339 #2373
+* Scrolling glitch in Command Palette, Launcher and InputSelector. Thanks to
+  @metiftikci! #4839
+* Pane resizing, especially around zooming, could sometimes leave artifacts due
+  to a cache invalidation issue. #4828
+* X11: Fix an issue where SHIFT and other modifiers could be inaccurate for automated
+  or high speed keyboard inputs. #4615 #3840
+* X11: can now paste STRING (latin-1) data from the clipboard, in addition to
+  UTF-8 string data. #4402
+* [use_resize_increments](config/lua/config/use_resize_increments.md) now
+  accounts for window padding. Thanks to @jknockel! #4824
+* Bar shaped text cursors are now rendered above text. Thanks to
+  @ErrorNoInternet! #4850
+* `format-tab-title` event was triggered excessively for background tabs/panes.
+  Thanks to @crides for investigating! #4788
+
+#### Updated
+* Bundled harfbuzz to 8.3.0
+* Bundled freetype to 2.13.1
+* Bundled Noto Color Emoji font to 2.038
+* Bundled Nerd Font Symbols font to v3.1.1.
+* wgpu to 0.18, which [improves OpenGL compatibility with older GPUs when using
+  WebGpu with its GL backend on Windows](https://github.com/gfx-rs/wgpu/releases/tag/v0.18.0)
+
+### 20230712-072601-f4abf8fd
+
+#### Changed
+
 * The default for
   [adjust_window_size_when_changing_font_size](config/lua/config/adjust_window_size_when_changing_font_size.md)
   now depends on the window environment and the contents of
@@ -32,17 +435,43 @@ As features stabilize some brief notes about them will accumulate here.
 * Don't hide mouse cursor when pressing only modifier keys. #3570
 * [PaneSelect](config/lua/keyassignment/PaneSelect.md) will now un-zoom to show
   all panes, then re-zoom after performing its action. #3573
+* Images, especially animated images, are now decoded in the background. When
+  used as a background layer for the terminal, we now use the normal
+  terminal background color as a placeholder until the first frame has been
+  decoded. In other circumstances, you may observe a brief black frame while
+  waiting for the image to decode.
+* You may now use CTRL-J/K to change the selection in the launcher menu,
+  in addition to CTRL-N/P which always worked previously. #3909
+* Duplicate entries in [CharSelect](config/lua/keyassignment/CharSelect.md) are
+  now suppressed, making it less cluttered. Thanks to @vimpostor! #3674
 
 #### New
 
 * [window:keyboard_modifiers](config/lua/window/keyboard_modifiers.md) #3444
 * [win32_system_backdrop](config/lua/config/win32_system_backdrop.md). Thanks to @kingavatar! #3528 #1614
 * [wezterm cli adjust-pane-size](cli/cli/adjust-pane-size.md). Thanks to @mrjones2014! #3471 #3491
+* [augment-command-palette](config/lua/window-events/augment-command-palette.md)
+  event for adding entries to the command palette without assigning keyboard
+  shortcuts. #3595
+* [char_select_bg_color](config/lua/config/char_select_bg_color.md) and
+  [char_select_fg_color](config/lua/config/char_select_fg_color.md) options to
+  customize the appearance of
+  [CharSelect](config/lua/keyassignment/CharSelect.md) mode. Thanks to @junnplus! #3703
+* Horizontal mouse wheel events are now passed through to the terminal. Thanks to @calops! #3856
+* [exit_behavior_messaging](config/lua/config/exit_behavior_messaging.md)
+  option to control output when holding a pane open after a process completes.
+  #3423
+* [default_mux_server_domain](config/lua/config/default_mux_server_domain.md) for the
+  (almost!) equivalent to [default_domain](config/lua/config/default_domain.md) in
+  the context of the mux server.
 
 #### Fixed
 
 * Modals, such as `CharSelect` and `CommandPalette` did not respect alternative
   OS-level key maps. #3470
+* X11/Wayland: CTRL-key presses for non-US latin keymaps regressed due to
+  changes to [improve handling of CTRL-key presses for non-latin
+  layouts](https://github.com/wez/wezterm/issues/2845). #3610
 * Numerous issues with the kitty keyboard protocol implementation #2546 #3220
   #3315 #3473 #3474 #3476 #3478 #3479 #3484 #3526
 * mux: Attempting to spawn into an ad-hoc SSH domain after the last tab could
@@ -54,8 +483,8 @@ As features stabilize some brief notes about them will accumulate here.
 * [`user-var-changed` event](config/lua/window-events/user-var-changed.md)
   would incorrectly trigger for every GUI window, rather than just the GUI
   window which contained the pane in which the variable was changed. #3524
-* PNG images without an alpha channel could not be displayed by in the
-  terminal. #3529.
+* PNG images without an alpha channel, or that were grayscale, could not be displayed by in the
+  terminal. #3529 #3742
 * tab width calculation when returning a string with embedded escape
   sequences from a `format-tab-title` event handler. #3481
 * Windows: clicking the maximize button didn't work unless using
@@ -68,10 +497,211 @@ As features stabilize some brief notes about them will accumulate here.
 * X11/Wayland: CTRL/ALT didn't work as expected for non-latin keyboard layouts. #2845
 * X11: panic after a lot of horizontal touchpad scrolling. #3564
 * Wayland: mouse cursor wouldn't reappear after keyboard input hides it. #3334
+* WebGPU: `window_background_opacity` was not always enabled when using a
+  vulkan backend. #3589
+* macOS: hang or crash when trying to copy or right click the about dialog.
+  The about dialog has been replaced with a menu item that you can click to
+  copy the version number. #3507 #3585
+* Synthesized italics were double-skewed. Thanks to @rozbb! #3613 #3555
+* Panic when using corrupt/invalid webp images as window background #3614
+* imgcat broken when using `wezterm ssh`. #3624
+* macOS: pasting file(s) will now paste the quoted full path(s) rather than
+  just the basename of the path. Thanks to @junnplus! #3663 #3665
+* WebGpu: don't panic when trying to allocate a texture larger than is
+  supported by the GPU. #3713
+* `CopyMode("EditPattern")` didn't switch the key table to `search_mode` #3746.
+* Windows: access denied error when using `wezterm.plugin.require`. Thanks to @nyxkrage! #3767
+* Windows: when shell integration was used, the last line of output could get
+  overwritten due to a conpty issue. #3531
+* Changing the color palette back to the default without resetting the terminal
+  would prevent changes to `color_scheme` from taking effect. #3685
+* ClearToEndOfLine performed in the last column of the display, when it is
+  prepped to wrap to the next line, would incorrectly clear the last cell.
+  #3548
+* WEZTERM_UNIX_SOCKET didn't get set when using `wezterm start -- something`. #3679
+* Pasting large amounts of text in helix caused issues. #3683
+* Wayland: Copying to clipboard was not always successful when triggered by the
+  keyboard. Thanks to @osandov! #3929
+* `wezterm ssh` connection errors were not shown; the window would close
+  immediately with the default `exit_behavior` setting. Now ssh sessions
+  override `exit_behavior="CloseOnCleanExit"` while connecting so that error
+  information can be displayed. #3941
+* Divide by zero panic with lots of splits and resizing panes. #3921
+* Spawn failures were not shown; the window would close immediately
+  with the default `exit_behavior` setting. Now local commands override
+  `exit_behavior="CloseOnCleanExit"` if the command fails to spawn, and
+  a more detailed error message is shown explaining what failed. #3928 #3950
+* macOS: middle mouse button dragging. Thanks to @JacobMalloy! #3908
+* Attempting to spawn a non-local domain via the mux server would fail with
+  invalid domain because none of the additional domains from your config were
+  registered with the mux server. #3907
 
 #### Updated
-* Bundled harfbuzz to 7.1.0
+* Bundled harfbuzz to 8.0.1
 * Bundled freetype to 2.13.0
+* Bundled Nerd Font Symbols font to v3.0.1. Note that there are several
+  [breaking changes in v3](https://github.com/ryanoasis/nerd-fonts/releases/tag/v3.0.0).
+* Color schemes: [3024 (dark) (terminal.sexy)](colorschemes/3/index.md#3024-dark-terminalsexy),
+  [3024 Day (Gogh)](colorschemes/3/index.md#3024-day-gogh),
+  [3024 Night (Gogh)](colorschemes/3/index.md#3024-night-gogh),
+  [Adventure Time (Gogh)](colorschemes/a/index.md#adventure-time-gogh),
+  [Alien Blood (Gogh)](colorschemes/a/index.md#alien-blood-gogh),
+  [Apprentice (Gogh)](colorschemes/a/index.md#apprentice-gogh),
+  [Argonaut (Gogh)](colorschemes/a/index.md#argonaut-gogh),
+  [Arthur (Gogh)](colorschemes/a/index.md#arthur-gogh),
+  [Ashes (dark) (terminal.sexy)](colorschemes/a/index.md#ashes-dark-terminalsexy),
+  [Atom (Gogh)](colorschemes/a/index.md#atom-gogh),
+  [Bamboo](colorschemes/b/index.md#bamboo),
+  [Bamboo Multiplex](colorschemes/b/index.md#bamboo-multiplex),
+  [Belafonte Day (Gogh)](colorschemes/b/index.md#belafonte-day-gogh),
+  [Belafonte Night (Gogh)](colorschemes/b/index.md#belafonte-night-gogh),
+  [Bespin (dark) (terminal.sexy)](colorschemes/b/index.md#bespin-dark-terminalsexy),
+  [Birds Of Paradise (Gogh)](colorschemes/b/index.md#birds-of-paradise-gogh),
+  [Blazer (Gogh)](colorschemes/b/index.md#blazer-gogh),
+  [Borland (Gogh)](colorschemes/b/index.md#borland-gogh),
+  [Brewer (dark) (terminal.sexy)](colorschemes/b/index.md#brewer-dark-terminalsexy),
+  [Broadcast (Gogh)](colorschemes/b/index.md#broadcast-gogh),
+  [Brogrammer (Gogh)](colorschemes/b/index.md#brogrammer-gogh),
+  [C64 (Gogh)](colorschemes/c/index.md#c64-gogh),
+  [Catppuccin Frappé (Gogh)](colorschemes/c/index.md#catppuccin-frappe-gogh),
+  [Catppuccin Latte (Gogh)](colorschemes/c/index.md#catppuccin-latte-gogh),
+  [Catppuccin Macchiato (Gogh)](colorschemes/c/index.md#catppuccin-macchiato-gogh),
+  [Catppuccin Mocha (Gogh)](colorschemes/c/index.md#catppuccin-mocha-gogh),
+  [catppuccin-frappe](colorschemes/c/index.md#catppuccin-frappe),
+  [catppuccin-macchiato](colorschemes/c/index.md#catppuccin-macchiato),
+  [catppuccin-mocha](colorschemes/c/index.md#catppuccin-mocha),
+  [Chalk (dark) (terminal.sexy)](colorschemes/c/index.md#chalk-dark-terminalsexy),
+  [Chalkboard (Gogh)](colorschemes/c/index.md#chalkboard-gogh),
+  [Ciapre (Gogh)](colorschemes/c/index.md#ciapre-gogh),
+  [Clrs (Gogh)](colorschemes/c/index.md#clrs-gogh),
+  [Cobalt 2 (Gogh)](colorschemes/c/index.md#cobalt-2-gogh),
+  [Cobalt Neon (Gogh)](colorschemes/c/index.md#cobalt-neon-gogh),
+  [Codeschool (dark) (terminal.sexy)](colorschemes/c/index.md#codeschool-dark-terminalsexy),
+  [Crayon Pony Fish (Gogh)](colorschemes/c/index.md#crayon-pony-fish-gogh),
+  [Dark Pastel (Gogh)](colorschemes/d/index.md#dark-pastel-gogh),
+  [Darkside (Gogh)](colorschemes/d/index.md#darkside-gogh),
+  [Default (dark) (terminal.sexy)](colorschemes/d/index.md#default-dark-terminalsexy),
+  [Desert (Gogh)](colorschemes/d/index.md#desert-gogh),
+  [Dimmed Monokai (Gogh)](colorschemes/d/index.md#dimmed-monokai-gogh),
+  [Earthsong (Gogh)](colorschemes/e/index.md#earthsong-gogh),
+  [Ef-Tritanopia-Light](colorschemes/e/index.md#ef-tritanopia-light),
+  [Eighties (dark) (terminal.sexy)](colorschemes/e/index.md#eighties-dark-terminalsexy),
+  [Elemental (Gogh)](colorschemes/e/index.md#elemental-gogh),
+  [Embers (dark) (terminal.sexy)](colorschemes/e/index.md#embers-dark-terminalsexy),
+  [Espresso (Gogh)](colorschemes/e/index.md#espresso-gogh),
+  [Espresso Libre (Gogh)](colorschemes/e/index.md#espresso-libre-gogh),
+  [Everblush (Gogh)](colorschemes/e/index.md#everblush-gogh),
+  [Fishtank (Gogh)](colorschemes/f/index.md#fishtank-gogh),
+  [Flatland (Gogh)](colorschemes/f/index.md#flatland-gogh),
+  [Frontend Delight (Gogh)](colorschemes/f/index.md#frontend-delight-gogh),
+  [Frontend Fun Forrest (Gogh)](colorschemes/f/index.md#frontend-fun-forrest-gogh),
+  [Frontend Galaxy (Gogh)](colorschemes/f/index.md#frontend-galaxy-gogh),
+  [Github (Gogh)](colorschemes/g/index.md#github-gogh),
+  [Gnometerm (terminal.sexy)](colorschemes/g/index.md#gnometerm-terminalsexy),
+  [Google (dark) (terminal.sexy)](colorschemes/g/index.md#google-dark-terminalsexy),
+  [Gotham (terminal.sexy)](colorschemes/g/index.md#gotham-terminalsexy),
+  [Grape (Gogh)](colorschemes/g/index.md#grape-gogh),
+  [Grass (Gogh)](colorschemes/g/index.md#grass-gogh),
+  [Grayscale (dark) (terminal.sexy)](colorschemes/g/index.md#grayscale-dark-terminalsexy),
+  [Greenscreen (dark) (terminal.sexy)](colorschemes/g/index.md#greenscreen-dark-terminalsexy),
+  [Gruvbox Dark (Gogh)](colorschemes/g/index.md#gruvbox-dark-gogh),
+  [Hardcore (Gogh)](colorschemes/h/index.md#hardcore-gogh),
+  [hardhacker](colorschemes/h/index.md#hardhacker),
+  [Harper (Gogh)](colorschemes/h/index.md#harper-gogh),
+  [Highway (Gogh)](colorschemes/h/index.md#highway-gogh),
+  [Hipster Green (Gogh)](colorschemes/h/index.md#hipster-green-gogh),
+  [Homebrew (Gogh)](colorschemes/h/index.md#homebrew-gogh),
+  [Homebrew Light (Gogh)](colorschemes/h/index.md#homebrew-light-gogh),
+  [Homebrew Ocean (Gogh)](colorschemes/h/index.md#homebrew-ocean-gogh),
+  [Hopscotch (base16)](colorschemes/h/index.md#hopscotch-base16),
+  [Hurtado (Gogh)](colorschemes/h/index.md#hurtado-gogh),
+  [Ic Orange Ppl (Gogh)](colorschemes/i/index.md#ic-orange-ppl-gogh),
+  [Idle Toes (Gogh)](colorschemes/i/index.md#idle-toes-gogh),
+  [Isotope (dark) (terminal.sexy)](colorschemes/i/index.md#isotope-dark-terminalsexy),
+  [Jackie Brown (Gogh)](colorschemes/j/index.md#jackie-brown-gogh),
+  [Japanesque (Gogh)](colorschemes/j/index.md#japanesque-gogh),
+  [Jellybeans (Gogh)](colorschemes/j/index.md#jellybeans-gogh),
+  [Kibble (Gogh)](colorschemes/k/index.md#kibble-gogh),
+  [Later This Evening (Gogh)](colorschemes/l/index.md#later-this-evening-gogh),
+  [Lavandula (Gogh)](colorschemes/l/index.md#lavandula-gogh),
+  [Liquid Carbon (Gogh)](colorschemes/l/index.md#liquid-carbon-gogh),
+  [Liquid Carbon Transparent (Gogh)](colorschemes/l/index.md#liquid-carbon-transparent-gogh),
+  [Londontube (dark) (terminal.sexy)](colorschemes/l/index.md#londontube-dark-terminalsexy),
+  [Man Page (Gogh)](colorschemes/m/index.md#man-page-gogh),
+  [Marrakesh (dark) (terminal.sexy)](colorschemes/m/index.md#marrakesh-dark-terminalsexy),
+  [Mathias (Gogh)](colorschemes/m/index.md#mathias-gogh),
+  [Medallion (Gogh)](colorschemes/m/index.md#medallion-gogh),
+  [Misterioso (Gogh)](colorschemes/m/index.md#misterioso-gogh),
+  [Mocha (dark) (terminal.sexy)](colorschemes/m/index.md#mocha-dark-terminalsexy),
+  [Mona Lisa (Gogh)](colorschemes/m/index.md#mona-lisa-gogh),
+  [Monokai (dark) (terminal.sexy)](colorschemes/m/index.md#monokai-dark-terminalsexy),
+  [Monokai Soda (Gogh)](colorschemes/m/index.md#monokai-soda-gogh),
+  [N0Tch2K (Gogh)](colorschemes/n/index.md#n0tch2k-gogh),
+  [Neopolitan (Gogh)](colorschemes/n/index.md#neopolitan-gogh),
+  [Neutron (Gogh)](colorschemes/n/index.md#neutron-gogh),
+  [Nightlion V1 (Gogh)](colorschemes/n/index.md#nightlion-v1-gogh),
+  [Nightlion V2 (Gogh)](colorschemes/n/index.md#nightlion-v2-gogh),
+  [niji](colorschemes/n/index.md#niji),
+  [Nord (Gogh)](colorschemes/n/index.md#nord-gogh),
+  [Novel (Gogh)](colorschemes/n/index.md#novel-gogh),
+  [Obsidian (Gogh)](colorschemes/o/index.md#obsidian-gogh),
+  [Ocean (dark) (terminal.sexy)](colorschemes/o/index.md#ocean-dark-terminalsexy),
+  [Oceanic Next (Gogh)](colorschemes/o/index.md#oceanic-next-gogh),
+  [Ollie (Gogh)](colorschemes/o/index.md#ollie-gogh),
+  [Paraiso (base16)](colorschemes/p/index.md#paraiso-base16),
+  [Paraiso (dark) (terminal.sexy)](colorschemes/p/index.md#paraiso-dark-terminalsexy),
+  [Paraiso Dark (Gogh)](colorschemes/p/index.md#paraiso-dark-gogh),
+  [Pencil Dark (Gogh)](colorschemes/p/index.md#pencil-dark-gogh),
+  [Pencil Light (Gogh)](colorschemes/p/index.md#pencil-light-gogh),
+  [Pnevma (Gogh)](colorschemes/p/index.md#pnevma-gogh),
+  [Pro (Gogh)](colorschemes/p/index.md#pro-gogh),
+  [Railscasts (dark) (terminal.sexy)](colorschemes/r/index.md#railscasts-dark-terminalsexy),
+  [Red Alert (Gogh)](colorschemes/r/index.md#red-alert-gogh),
+  [Red Sands (Gogh)](colorschemes/r/index.md#red-sands-gogh),
+  [Relaxed (Gogh)](colorschemes/r/index.md#relaxed-gogh),
+  [Rippedcasts (Gogh)](colorschemes/r/index.md#rippedcasts-gogh),
+  [Rosé Pine (Gogh)](colorschemes/r/index.md#rose-pine-gogh),
+  [Rosé Pine Dawn (Gogh)](colorschemes/r/index.md#rose-pine-dawn-gogh),
+  [Rosé Pine Moon (Gogh)](colorschemes/r/index.md#rose-pine-moon-gogh),
+  [Royal (Gogh)](colorschemes/r/index.md#royal-gogh),
+  [Sea Shells (Gogh)](colorschemes/s/index.md#sea-shells-gogh),
+  [Seafoam Pastel (Gogh)](colorschemes/s/index.md#seafoam-pastel-gogh),
+  [Seti (Gogh)](colorschemes/s/index.md#seti-gogh),
+  [Shaman (Gogh)](colorschemes/s/index.md#shaman-gogh),
+  [Slate (Gogh)](colorschemes/s/index.md#slate-gogh),
+  [Soft Server (Gogh)](colorschemes/s/index.md#soft-server-gogh),
+  [Solarized Darcula (Gogh)](colorschemes/s/index.md#solarized-darcula-gogh),
+  [Solarized Dark Higher Contrast (Gogh)](colorschemes/s/index.md#solarized-dark-higher-contrast-gogh),
+  [Solarized Light (Gogh)](colorschemes/s/index.md#solarized-light-gogh),
+  [Spacedust (Gogh)](colorschemes/s/index.md#spacedust-gogh),
+  [Spacegray (Gogh)](colorschemes/s/index.md#spacegray-gogh),
+  [Spacegray Eighties (Gogh)](colorschemes/s/index.md#spacegray-eighties-gogh),
+  [Spacegray Eighties Dull (Gogh)](colorschemes/s/index.md#spacegray-eighties-dull-gogh),
+  [Sundried (Gogh)](colorschemes/s/index.md#sundried-gogh),
+  [Symphonic (Gogh)](colorschemes/s/index.md#symphonic-gogh),
+  [Teerb (Gogh)](colorschemes/t/index.md#teerb-gogh),
+  [Terminal Basic (Gogh)](colorschemes/t/index.md#terminal-basic-gogh),
+  [Thayer Bright (Gogh)](colorschemes/t/index.md#thayer-bright-gogh),
+  [Tokyo Night](colorschemes/t/index.md#tokyo-night),
+  [Tokyo Night Day](colorschemes/t/index.md#tokyo-night-day),
+  [Tokyo Night Moon](colorschemes/t/index.md#tokyo-night-moon),
+  [Tokyo Night Storm](colorschemes/t/index.md#tokyo-night-storm),
+  [tokyonight](colorschemes/t/index.md#tokyonight),
+  [tokyonight-day](colorschemes/t/index.md#tokyonight-day),
+  [tokyonight-storm](colorschemes/t/index.md#tokyonight-storm),
+  [Toy Chest (Gogh)](colorschemes/t/index.md#toy-chest-gogh),
+  [Treehouse (Gogh)](colorschemes/t/index.md#treehouse-gogh),
+  [Twilight (dark) (terminal.sexy)](colorschemes/t/index.md#twilight-dark-terminalsexy),
+  [Twilight (Gogh)](colorschemes/t/index.md#twilight-gogh),
+  [Urple (Gogh)](colorschemes/u/index.md#urple-gogh),
+  [Vaughn (Gogh)](colorschemes/v/index.md#vaughn-gogh),
+  [Vibrant Ink (Gogh)](colorschemes/v/index.md#vibrant-ink-gogh),
+  [Warm Neon (Gogh)](colorschemes/w/index.md#warm-neon-gogh),
+  [Wez (Gogh)](colorschemes/w/index.md#wez-gogh),
+  [Wild Cherry (Gogh)](colorschemes/w/index.md#wild-cherry-gogh),
+  [Wombat (Gogh)](colorschemes/w/index.md#wombat-gogh),
+  [Wryan (Gogh)](colorschemes/w/index.md#wryan-gogh),
+  [Zenburn (Gogh)](colorschemes/z/index.md#zenburn-gogh)
 
 ### 20230408-112425-69ae8472
 
@@ -303,8 +933,8 @@ As features stabilize some brief notes about them will accumulate here.
   [rose-pine](colorschemes/r/index.md#rose-pine),
   [rose-pine-dawn](colorschemes/r/index.md#rose-pine-dawn),
   [rose-pine-moon](colorschemes/r/index.md#rose-pine-moon),
-  [Solarized (dark) (terminal.sexy)](colorschemes/s/index.md#solarized-dark-terminal-sexy),
-  [tokyonight_moon](colorschemes/t/index.md#tokyonight-moon)
+  [Solarized (dark) (terminal.sexy)](colorschemes/s/index.md#solarized-dark-terminalsexy),
+  [tokyonight_moon](colorschemes/t/index.md)
 * [window:focus()](config/lua/window/focus.md),
   [ActivateWindow](config/lua/keyassignment/ActivateWindow.md),
   [ActivateWindowRelative](config/lua/keyassignment/ActivateWindowRelative.md),
@@ -396,7 +1026,7 @@ As features stabilize some brief notes about them will accumulate here.
   reduces the render latency due to decoding frames; animations now render as
   soon as the first frame is decoded.
   [#3263](https://github.com/wez/wezterm/issues/3263)
-* Improved compatiblity with the Kitty Image Protocol
+* Improved compatibility with the Kitty Image Protocol
   [#2716](https://github.com/wez/wezterm/issues/2716)
 * [wezterm.time.call_after](config/lua/wezterm.time/call_after.md) would not
   work when used in an event callback.
@@ -646,7 +1276,7 @@ As features stabilize some brief notes about them will accumulate here.
 
 #### New
 
-* Color schemes: [carbonfox](colorschemes/c/index.md#carbonfox), [DanQing Light (base16)](colorschemes/d/index.md#danqing-light-base16), [Dracula (Official)](colorschemes/d/index.md#dracula-official), [Poimandres](colorschemes/p/index.md#poimandres), [Poimandres Storm](colorschemes/p/index.md#poimandres-storm), [Sequoia Monochrome](colorschemes/s/index.md#sequoia-monochrome), [Sequoia Moonlight](colorschemes/s/index.md#sequoia-moonlight), [SynthwaveAlpha](colorschemes/s/index.md#synthwavealpha), [SynthwaveAlpha (Gogh)](colorschemes/s/index.md#synthwavealpha-gogh)
+* Color schemes: [carbonfox](colorschemes/c/index.md#carbonfox), [DanQing Light (base16)](colorschemes/d/index.md#danqing-light-base16), [Dracula (Official)](colorschemes/d/index.md#dracula-official), [Poimandres](colorschemes/p/index.md#poimandres), [Poimandres Storm](colorschemes/p/index.md#poimandres-storm), [Sequoia Monochrome](colorschemes/s/index.md#sequoia-monochrome), [Sequoia Moonlight](colorschemes/s/index.md#sequoia-moonlight), [SynthwaveAlpha](colorschemes/s/index.md#synthwavealpha), [SynthwaveAlpha (Gogh)](colorschemes/s/index.md#synthwave-alpha-gogh)
 * [window_frame](config/lua/config/window_frame.md) now supports setting border size and color [#2417](https://github.com/wez/wezterm/issues/2417)
 * [CopyMode](copymode.md) now supports selecting and move by semantic zones. [#2346](https://github.com/wez/wezterm/issues/2346)
 * [max_fps](config/lua/config/max_fps.md) option to limit maximum frame rate [#2419](https://github.com/wez/wezterm/discussions/2419)
@@ -724,7 +1354,7 @@ As features stabilize some brief notes about them will accumulate here.
 * Internal scrollback datastructure improvements reduce per-cell overhead by up to ~40x depending on the composition of the line (lines with lots of varied attributes or image attachments will have more overhead).
 * Improved search performance
 * Quickselect: now defaults to searching 1000 lines above and below the current viewport, making it faster and the labels shorter for users with a larger scrollback. A new `scope_lines` parameter to [QuickSelectArgs](config/lua/keyassignment/QuickSelectArgs.md) allows controlling the search region explicitly. Thanks to [@yyogo](https://github.com/yyogo) for the initial PR! [#1317](https://github.com/wez/wezterm/pull/1317)
-* OSC 10, 11 and 12 (Set Default Text Background, Default Text Foreground Color, and Text Cursor Color) now support setting the alpha component [#2313](https://github.com/wez/wezterm/issues/2313), and added [CSI 38:6](escape-sequences.md#csi-386---foreground-color-rgba), `CSI 48:6` and `CSI 58:6` extensions to allow setting full color RGB with Alpha channel for spans of text.
+* OSC 10, 11 and 12 (Set Default Text Background, Default Text Foreground Color, and Text Cursor Color) now support setting the alpha component [#2313](https://github.com/wez/wezterm/issues/2313), and added [CSI 38:6](escape-sequences.md#csi-386-foreground-color-rgba), `CSI 48:6` and `CSI 58:6` extensions to allow setting full color RGB with Alpha channel for spans of text.
 * Copy Mode: setting the same selection mode a second time will now toggle off that mode and clear the selection, preserving the current position [#2246](https://github.com/wez/wezterm/discussions/2246)
 * Copy Mode: new default vim-style `y` "yank" key assignment will copy the selection and close copy mode
 
@@ -749,7 +1379,7 @@ As features stabilize some brief notes about them will accumulate here.
 * Mux: `wezterm.mux.set_active_workspace` didn't update the current window to match the newly activated workspace. [#2248](https://github.com/wez/wezterm/issues/2248)
 * Overlays such as debug and launcher menu now handle resize better
 * Shift-F1 through F4 generated different encoding than xterm [#2263](https://github.com/wez/wezterm/issues/2263)
-* X11/Wayland: apps that extract the `Exec` field from wezterm.desktop (such as thunar, Dolphin and others) can now simply concatenate the command line they want to invoke, and it will spawn in the their current working directory. Thanks to [@Anomalocaridid](https://github.com/Anomalocaridid)! [#2271](https://github.com/wez/wezterm/pull/2271) [#2103](https://github.com/wez/wezterm/issues/2103) 
+* X11/Wayland: apps that extract the `Exec` field from wezterm.desktop (such as thunar, Dolphin and others) can now simply concatenate the command line they want to invoke, and it will spawn in the their current working directory. Thanks to [@Anomalocaridid](https://github.com/Anomalocaridid)! [#2271](https://github.com/wez/wezterm/pull/2271) [#2103](https://github.com/wez/wezterm/issues/2103)
 * [gui-startup](config/lua/gui-events/gui-startup.md) now passes a [SpawnCommand](config/lua/SpawnCommand.md) parameter representing the `wezterm start` command arguments.
 * Tab `x` button is no longer obscured by tab title text for long tab titles [#2269](https://github.com/wez/wezterm/issues/2269)
 * Cursor position could end up in the wrong place when rewrapping lines and the cursor was on the rewrap boundary [#2162](https://github.com/wez/wezterm/issues/2162)
@@ -784,11 +1414,11 @@ As features stabilize some brief notes about them will accumulate here.
 * In Copy Mode, `SHIFT-v` will enable line selection mode. Thanks to [@bew](https://github.com/bew)! [#2086](https://github.com/wez/wezterm/pull/2086)
 * In Copy Mode, `o` and `O` can be used to move the cursor to the other end of the selection, as in vim. Thanks to [@bew](https://github.com/bew)! [#2150](https://github.com/wez/wezterm/pull/2150)
 * Copy Mode: key assignments are [now configurable](copymode.md#configurable-key-assignments) [#993](https://github.com/wez/wezterm/issues/993)
-* Search Mode: key assignments are [now configurable](scrollback.md#configurable-key-assignments) [#993](https://github.com/wez/wezterm/issues/993)
+* Search Mode: key assignments are [now configurable](scrollback.md#configurable-search-mode-key-assignments) [#993](https://github.com/wez/wezterm/issues/993)
 * Search Mode: the default `CTRL-SHIFT-F` key assignment now defaults to the new `CurrentSelectionOrEmptyString` mode to search for the current selection text, if any.  See [Search](config/lua/keyassignment/Search.md) for more info.
 * Copy Mode and Search Mode can be toggled and remember search results and cursor positioning, making it easier to locate and select text without using the mouse [#1592](https://github.com/wez/wezterm/issues/1592)
 * In the Launcher Menu, you may now use `CTRL-G` to cancel/exit the launcher [#1977](https://github.com/wez/wezterm/issues/1977)
-* [cell_width](config/lua/config/cell_width.md) option to adjust the horizontal spacing when the availble font stretches are insufficient. [#1979](https://github.com/wez/wezterm/issues/1979)
+* [cell_width](config/lua/config/cell_width.md) option to adjust the horizontal spacing when the available font stretches are insufficient. [#1979](https://github.com/wez/wezterm/issues/1979)
 * [min_scroll_bar_height](config/lua/config/min_scroll_bar_height.md) to control the minimum size of the scroll bar thumb [#1936](https://github.com/wez/wezterm/issues/1936)
 * [RotatePanes](config/lua/keyassignment/RotatePanes.md) key assignment for re-arranging the panes in a tab
 * [SplitPane](config/lua/keyassignment/SplitPane.md) key assignment that allows specifying the size and location of the split, as well as top-level (full width/height) splits. `wezterm cli split-pane --help` shows equivalent options you can use from the cli. [#578](https://github.com/wez/wezterm/issues/578)
@@ -798,7 +1428,7 @@ As features stabilize some brief notes about them will accumulate here.
 * [PaneSelect](config/lua/keyassignment/PaneSelect.md) key assignment to activate the pane selection UI to activate or swap the selected pane. [#1842](https://github.com/wez/wezterm/issues/1842) [#1975](https://github.com/wez/wezterm/issues/1975)
 * [window_background_gradient](config/lua/config/window_background_gradient.md) now also supports `Linear` gradients with an angle of your choice. Thanks to [@erf](https://github.com/erf)! [#2038](https://github.com/wez/wezterm/pull/2038)
 * RPM and DEB packages now install zsh and bash `wezterm` CLI completions
-* Color schemes: [arcoiris](colorschemes/a/index.md#arcoiris), [duckbones](colorschemes/d/index.md#duckbones), [Grey-green](colorschemes/g/index.md#grey-green), [kanagawabones](colorschemes/k/index.md#kanagawabones), [Neon](colorschemes/n/index.md#neon), [neobones_dark](colorschemes/n/index.md#neobones_dark), [neobones_light](colorschemes/n/index.md#neobones_light), [seoulbones_dark](colorschemes/s/index.md#seoulbones_dark), [seoulbones_light](colorschemes/s/index.md#seoulbones_light), [tokyonight-day](colorschemes/t/index.md#tokyonight-day), [tokyonight-storm](colorschemes/t/index.md#tokyonight-storm), [tokyonight](colorschemes/t/index.md#tokyonight), [vimbones](colorschemes/v/index.md#vimbones), [zenbones](colorschemes/z/index.md#zenbones), [zenbones_dark](colorschemes/z/index.md#zenbones_dark), [zenbones_light](colorschemes/z/index.md#zenbones_light), [zenburned](colorschemes/z/index.md#zenburned), [zenwritten_dark](colorschemes/z/index.md#zenwritten_dark), [zenwritten_light](colorschemes/z/index.md#zenwritten_light)
+* Color schemes: [arcoiris](colorschemes/a/index.md#arcoiris), [duckbones](colorschemes/d/index.md#duckbones), [Grey-green](colorschemes/g/index.md#grey-green), [kanagawabones](colorschemes/k/index.md#kanagawabones), [Neon](colorschemes/n/index.md#neon), [neobones_dark](colorschemes/n/index.md#neobones_dark), [neobones_light](colorschemes/n/index.md#neobones_light), [seoulbones_dark](colorschemes/s/index.md#seoulbones_dark), [seoulbones_light](colorschemes/s/index.md#seoulbones_light), [tokyonight-day](colorschemes/t/index.md#tokyonight-day), [tokyonight-storm](colorschemes/t/index.md#tokyonight-storm), [tokyonight](colorschemes/t/index.md#tokyonight), [vimbones](colorschemes/v/index.md#vimbones), [zenbones](colorschemes/z/index.md#zenbones), [zenbones_dark](colorschemes/z/index.md#zenbones_dark), [zenbones_light](colorschemes/z/index.md), [zenburned](colorschemes/z/index.md#zenburned), [zenwritten_dark](colorschemes/z/index.md#zenwritten_dark), [zenwritten_light](colorschemes/z/index.md#zenwritten_light)
 * [wezterm.GLOBAL](config/lua/wezterm/GLOBAL.md) for persisting lua data across config reloads
 * `wezterm show-keys` command to show key and mouse binding assignments [#2134](https://github.com/wez/wezterm/issues/2134)
 
@@ -880,7 +1510,7 @@ As features stabilize some brief notes about them will accumulate here.
 * X11: workaround i3-gaps not sending initial CONFIGURE_NOTIFY or FOCUS events, leading to weird initial window size and broken focus status. [#1710](https://github.com/wez/wezterm/issues/1710) [#1757](https://github.com/wez/wezterm/issues/1757)
 * Hyperlink rules with more captures than replacements could panic wezterm when text matched. [#1780](https://github.com/wez/wezterm/issues/1780)
 * Malformed XTGETTCAP response. [#1781](https://github.com/wez/wezterm/issues/1781)
-* Multiplexer performance with images was unusuable for all but tiny images. [#1237](https://github.com/wez/wezterm/issues/1237)
+* Multiplexer performance with images was unusable for all but tiny images. [#1237](https://github.com/wez/wezterm/issues/1237)
 * `CloseCurrentPane{confirm=false}` would leave behind a phantom tab/pane when used with the multiplexer. [#1277](https://github.com/wez/wezterm/issues/1277)
 * `CloseCurrentPane{confirm=true}` artifacts when used with the multiplexer. [#783](https://github.com/wez/wezterm/issues/783)
 * Scrollbar thumb could jump around/move out of bounds. Thanks to [@davidrios](https://github.com/davidrios)! [#1525](https://github.com/wez/wezterm/issues/1525)
@@ -975,7 +1605,7 @@ As features stabilize some brief notes about them will accumulate here.
 * [harfbuzz_features](config/font-shaping.md), [freetype_load_target](config/lua/config/freetype_load_target.md), [freetype_render_target](config/lua/config/freetype_render_target.md) and [freetype_load_flags](config/lua/config/freetype_load_flags.md) can now be overridden on a per-font basis as described in [wezterm.font](config/lua/wezterm/font.md) and [wezterm.font_with_fallback](config/lua/wezterm/font_with_fallback.md).
 * [ActivateTabRelativeNoWrap](config/lua/keyassignment/ActivateTabRelativeNoWrap.md) key assignment [#1414](https://github.com/wez/wezterm/issues/1414)
 * [QuickSelectArgs](config/lua/keyassignment/QuickSelectArgs.md) key assignment [#846](https://github.com/wez/wezterm/issues/846) [#1362](https://github.com/wez/wezterm/issues/1362)
-* [wezterm.open_wth](config/lua/wezterm/open_with.md) function for opening URLs/documents with the default or a specific application [#1362](https://github.com/wez/wezterm/issues/1362)
+* [wezterm.open_with](config/lua/wezterm/open_with.md) function for opening URLs/documents with the default or a specific application [#1362](https://github.com/wez/wezterm/issues/1362)
 * [pane:get_foreground_process_name()](config/lua/pane/get_foreground_process_name.md) method, [PaneInformation](config/lua/PaneInformation.md) now has `foreground_process_name` and `current_working_dir` fields, and [pane:get_current_working_dir](config/lua/pane/get_current_working_dir.md) is now supported on Windows for local processes, even without using OSC 7. [#1421](https://github.com/wez/wezterm/discussions/1421) [#915](https://github.com/wez/wezterm/issues/915) [#876](https://github.com/wez/wezterm/issues/876)
 * [ActivatePaneDirection](config/lua/keyassignment/ActivatePaneDirection.md) now also supports `"Next"` and `"Prev"` to cycle through panes [#976](https://github.com/wez/wezterm/issues/976)
 * [pane:get_logical_lines_as_text](config/lua/pane/get_logical_lines_as_text.md) to retrieve unwrapped logical lines from a pane [#1468](https://github.com/wez/wezterm/issues/1468)
@@ -1280,7 +1910,7 @@ As features stabilize some brief notes about them will accumulate here.
 
 ### 20210314-114017-04b7cedd
 
-* New: [tab_bar_style](config/lua/config/tab_bar_style.md) allows customizing the appearance of the rest of tha tab bar.
+* New: [tab_bar_style](config/lua/config/tab_bar_style.md) allows customizing the appearance of the rest of the tab bar.
 * New: animated gif and png images displayed via `wezterm imgcat` (the iTerm2 image protocol), or attached to the window background via [window_background_image](config/appearance.md#window-background-image) will now animate while the window has focus.
 * New: added [foreground_text_hsb](config/lua/config/foreground_text_hsb.md) setting to adjust hue, saturation and brightness when text is rendered.
 * New: added [ResetFontAndWindowSize](config/lua/keyassignment/ResetFontAndWindowSize.md) key assignment.
@@ -1297,7 +1927,7 @@ As features stabilize some brief notes about them will accumulate here.
 * New: [window:set_right_status](config/lua/window/set_right_status.md) allows setting additional status information in the tab bar. [#500](https://github.com/wez/wezterm/issues/500)
 * New: Search Mode: Added `CTRL-u` key assignment to clear the current search pattern. Thanks to [@bew](https://github.com/bew)! [#465](https://github.com/wez/wezterm/pull/465)
 * Fonts: `font_antialias` and `font_hinting` are now deprecated in favor of the new [freetype_load_target](config/lua/config/freetype_load_target.md) and [freetype_load_flags](config/lua/config/freetype_load_flags.md) options.  The deprecated options have no effect and will be removed in a future release.  The new options provide more direct control over how freetype rasterizes text.
-* Fonts: when computing default `font_rules` for bold and italic fonts, strip italic and bold components from the family name. eg: if you set `font = wezterm.font("Source Code Pro Medium")` then the ` Medium` text will be stripped from the font name used to locate bold and italic variants so that we don't report an error loading a non-sensical `Source Code Pro Medium Bold`. [#456](https://github.com/wez/wezterm/issues/456)
+* Fonts: when computing default `font_rules` for bold and italic fonts, strip italic and bold components from the family name. eg: if you set `font = wezterm.font("Source Code Pro Medium")` then the `Medium` text will be stripped from the font name used to locate bold and italic variants so that we don't report an error loading a non-sensical `Source Code Pro Medium Bold`. [#456](https://github.com/wez/wezterm/issues/456)
 * Fonts: fix a regression where bright windows behind wezterm could "shine through" on the alpha channel, and adjust the tinting operation to avoid anti-aliased dark fringes [#470](https://github.com/wez/wezterm/issues/470) [#491](https://github.com/wez/wezterm/issues/491)
 * Fonts: macOS: fix an issue where wezterm could hang when loading a font located via Core Text [#475](https://github.com/wez/wezterm/issues/475)
 * Fonts: Changed the default [font_size](config/lua/config/font_size.md) to 12 points. [#517](https://github.com/wez/wezterm/discussions/517)
@@ -1371,7 +2001,7 @@ As features stabilize some brief notes about them will accumulate here.
 * macOS: Windows now have drop-shadows when they are opaque. These were disabled due transparency support was added. Thanks to [Rice](https://github.com/fanzeyi)! [#445](https://github.com/wez/wezterm/pull/445)
 * Unix: adjust font-config patterns to also match "dual spacing" fonts such as [Iosevka Term](https://typeof.net/Iosevka/). Thanks to [Leiser](https://github.com/leiserfg)! [#446](https://github.com/wez/wezterm/pull/446)
 * New: Added [alternate_buffer_wheel_scroll_speed](config/lua/config/alternate_buffer_wheel_scroll_speed.md) option to control how many cursor key presses are generated by the mouse wheel when the alternate screen is active. The new default for this is a faster-than-previous-releases 3 lines per wheel tick. [#432](https://github.com/wez/wezterm/issues/432)
-* macOS: Dead Keys are now processed even when `use_ime=false`.  [More details in the docs](config/keys.md#macos-left-and-right-option-key). [#410](https://github.com/wez/wezterm/issues/410).
+* macOS: Dead Keys are now processed even when `use_ime=false`.  [More details in the docs](config/keyboard-concepts.md#macos-left-and-right-option-key). [#410](https://github.com/wez/wezterm/issues/410).
 * X11: attempt to load cursors from the XCursor.theme resource specified on the root window [#524](https://github.com/wez/wezterm/issues/524)
 * Added `file://` URL matching to the default list of implicit hyperlink rules [#525](https://github.com/wez/wezterm/issues/525)
 

@@ -1,18 +1,23 @@
 #!/bin/sh
 
-case $1 in
-  --testing)
-    TESTING=0
-  ;;
-  '')
-    TESTING=1
-  ;;
-  *)
-    echo 'get-deps:'
-    echo '  --testing    include dependencies required for tests'
-    exit 1
-  ;;
-esac
+TESTING=0
+DOCS=0
+for arg in "$@"; do
+    case $arg in
+      --testing)
+        TESTING=1
+      ;;
+      --docs)
+        DOCS=1
+      ;;
+      *)
+        echo 'get-deps:'
+        echo '  --docs       include dependencies required for testing docs'
+        echo '  --testing    include dependencies required for tests'
+        exit 1
+      ;;
+    esac
+done
 
 NOTFOUND=0
 
@@ -21,7 +26,11 @@ test_cmd() {
 }
 
 test_flag() {
-  test $TESTING -eq 0
+  test $TESTING -eq 1
+}
+
+docs_flag() {
+  test $DOCS -eq 1
 }
 
 if test -z "$SUDO"; then
@@ -106,7 +115,6 @@ suse_deps() {
   if [ "${CI}" == "yes" ] ; then
     RESOLVE="--allow-downgrade"
   fi
-  $ZYPPER install $RESOLVE -yl 'perl-FindBin' 'perl-File-Compare' || true
   $ZYPPER install $RESOLVE -yl \
     'make' \
     'gcc' \
@@ -164,6 +172,9 @@ debian_deps() {
   if test_flag; then
     $APT install -y 'openssh-server'
   fi
+  if docs_flag; then
+    $APT install -y 'python3-pip mkdocs'
+  fi
 }
 
 arch_deps() {
@@ -179,7 +190,6 @@ arch_deps() {
     'libxkbcommon-x11' \
     'pkgconf' \
     'python3' \
-    'rust' \
     'wayland' \
     'xcb-util' \
     'xcb-util-image' \
@@ -335,7 +345,7 @@ case $ID in
   *suse*)
     suse_deps
   ;;
-  debian|ubuntu)
+  debian|ubuntu|pop)
     debian_deps
   ;;
   freebsd) # available since 13.0
