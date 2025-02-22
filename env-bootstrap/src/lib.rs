@@ -11,6 +11,33 @@ pub fn set_wezterm_executable() {
     }
 }
 
+pub fn fixup_snap() {
+    if std::env::var_os("SNAP").is_some() {
+        // snapd sets a bunch of environment variables as a part of setup
+        // These are not useful to be passed through to things spawned by us.
+
+        // SNAP is the base path of the files in the snap
+        std::env::remove_var("SNAP");
+
+        // snapd also sets a bunch of SNAP_* environment variables
+        // This list may change over time, so for simplicity, assume
+        // anything in the SNAP_* namespace is set by snapd, and unset it.
+        std::env::vars_os()
+            .into_iter()
+            .filter(|(key, _)| {
+                key.to_str()
+                    .filter(|key| key.starts_with("SNAP_"))
+                    .is_some()
+            })
+            .map(|(key, _)| key)
+            .for_each(|key| std::env::remove_var(key));
+
+        // snapd has *also* set LD_LIBRARY_PATH, and things we spawn
+        // *absolutely do not* want this propagated
+        std::env::remove_var("LD_LIBRARY_PATH");
+    }
+}
+
 pub fn fixup_appimage() {
     if let Some(appimage) = std::env::var_os("APPIMAGE") {
         let appimage = std::path::PathBuf::from(appimage);
@@ -89,6 +116,7 @@ pub fn fixup_appimage() {
 /// it to a UTF-8 version of the current locale known to NSLocale.
 #[cfg(target_os = "macos")]
 pub fn set_lang_from_locale() {
+    #![allow(unexpected_cfgs)] // <https://github.com/SSheldon/rust-objc/issues/125>
     use cocoa::base::id;
     use cocoa::foundation::NSString;
     use objc::runtime::Object;
@@ -119,8 +147,8 @@ pub fn set_lang_from_locale() {
                 let country_code = nsstring_to_str(country_code_obj);
 
                 let candidate = format!("{}_{}.UTF-8", lang_code, country_code);
-                let candidate_cstr = std::ffi::CString::new(candidate.as_bytes().clone())
-                    .expect("make cstr from str");
+                let candidate_cstr =
+                    std::ffi::CString::new(candidate.as_bytes()).expect("make cstr from str");
 
                 // If this looks like a working locale then export it to
                 // the environment so that our child processes inherit it.
@@ -172,12 +200,13 @@ fn register_lua_modules() {
         mux_lua::register,
         procinfo_funcs::register,
         filesystem::register,
-        json::register,
+        serde_funcs::register,
         plugin::register,
         ssh_funcs::register,
         spawn_funcs::register,
         share_data::register,
         time_funcs::register,
+        url_funcs::register,
     ] {
         config::lua::add_context_setup_func(func);
     }
@@ -197,6 +226,7 @@ pub fn bootstrap() {
     set_lang_from_locale();
 
     fixup_appimage();
+    fixup_snap();
 
     register_lua_modules();
 
@@ -206,7 +236,7 @@ pub fn bootstrap() {
     std::env::remove_var("WINDOWID");
     // Avoid vte shell integration kicking in if someone started
     // wezterm or the mux server from inside gnome terminal.
-    // <https://github.com/wez/wezterm/issues/2237>
+    // <https://github.com/wezterm/wezterm/issues/2237>
     std::env::remove_var("VTE_VERSION");
 
     // Sice folks don't like to reboot or sign out if they `chsh`,

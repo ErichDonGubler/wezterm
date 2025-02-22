@@ -40,6 +40,8 @@ Activating the selected item will close the command palette and then invoke the
 action.
 
 See also:
-* [command_palette_font_size](../config/command_palette_font_size.md)
-* [command_palette_fg_color](../config/command_palette_fg_color.md)
-* [command_palette_bg_color](../config/command_palette_bg_color.md)
+
+ * [command_palette_font_size](../config/command_palette_font_size.md)
+ * [command_palette_fg_color](../config/command_palette_fg_color.md)
+ * [command_palette_bg_color](../config/command_palette_bg_color.md)
+ * [ui_key_cap_rendering](../config/ui_key_cap_rendering.md)

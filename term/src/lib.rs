@@ -1,7 +1,7 @@
 //! This crate provides the core of the virtual terminal emulator implementation
-//! used by [wezterm](https://wezfurlong.org/wezterm/).  The home for this
+//! used by [wezterm](https://wezterm.org/).  The home for this
 //! crate is in the wezterm repo and development is tracked at
-//! <https://github.com/wez/wezterm/>.
+//! <https://github.com/wezterm/wezterm/>.
 //!
 //! It is full featured, providing terminal escape sequence parsing, keyboard
 //! and mouse input encoding, a model for the screen cells including scrollback,
@@ -35,8 +35,6 @@ pub use termwiz::surface::line::*;
 
 pub mod screen;
 pub use crate::screen::*;
-
-use termwiz::hyperlink::Hyperlink;
 
 pub mod terminal;
 pub use crate::terminal::*;

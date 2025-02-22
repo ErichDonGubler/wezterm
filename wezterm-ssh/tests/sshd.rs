@@ -1,11 +1,11 @@
 use assert_fs::prelude::*;
 use assert_fs::TempDir;
-use once_cell::sync::Lazy;
 use rstest::*;
 use std::collections::HashMap;
 use std::io::Result as IoResult;
 use std::path::Path;
 use std::process::{Child, Command};
+use std::sync::LazyLock;
 use std::time::Duration;
 use wezterm_ssh::{Config, Session, SessionEvent};
 
@@ -14,6 +14,10 @@ use std::os::unix::fs::PermissionsExt;
 
 /// NOTE: OpenSSH's sshd requires absolute path
 const BIN_PATH_STR: &str = "/usr/sbin/sshd";
+
+pub fn sshd_available() -> bool {
+    Path::new(BIN_PATH_STR).exists()
+}
 
 /// Ask the kernel to assign a free port.
 /// We pass this to sshd and tell it to listen on that port.
@@ -24,7 +28,7 @@ fn allocate_port() -> u16 {
     listener.local_addr().unwrap().port()
 }
 
-const USERNAME: Lazy<String> = Lazy::new(whoami::username);
+const USERNAME: LazyLock<String> = LazyLock::new(whoami::username);
 
 pub struct SshKeygen;
 
@@ -431,11 +435,13 @@ impl std::ops::DerefMut for SessionWithSshd {
 
 #[fixture]
 /// Stand up an sshd instance and then connect to it and perform authentication
-pub async fn session(sshd: Sshd) -> SessionWithSshd {
+pub async fn session(#[default(Config::new())] config: Config, sshd: Sshd) -> SessionWithSshd {
     let port = sshd.port;
 
-    let mut config = Config::new();
-    config.add_default_config_files();
+    // Do not add the default config files; they take the config of the
+    // user that is running the tests which can vary wildly and have
+    // inappropriate configuration that disrupts the tests.
+    // NO: config.add_default_config_files();
 
     // Load our config to point to ourselves, using current sshd instance's port,
     // generated identity file, and host file
@@ -510,6 +516,9 @@ pub async fn session(sshd: Sshd) -> SessionWithSshd {
                 auth.answer(answers)
                     .await
                     .expect("Failed to send authenticate response");
+            }
+            SessionEvent::HostVerificationFailed(failed) => {
+                panic!("{}", failed);
             }
             SessionEvent::Error(err) => {
                 panic!("{}", err);

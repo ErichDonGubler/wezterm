@@ -483,7 +483,7 @@ impl CellAttributes {
                 || fat.foreground != ColorAttribute::Default
             {
                 res.allocate_fat_attributes();
-                let mut new_fat = res.fat.as_mut().unwrap();
+                let new_fat = res.fat.as_mut().unwrap();
                 new_fat.foreground = fat.foreground;
                 new_fat.background = fat.background;
             }
@@ -504,7 +504,7 @@ impl CellAttributes {
         // color when erasing rather than other attributes, so it should
         // be fine to clear out the actual underline attribute.
         // Let's extend this to other line attribute types as well.
-        // <https://github.com/wez/wezterm/issues/2489>
+        // <https://github.com/wezterm/wezterm/issues/2489>
         res.set_underline(Underline::None);
         res.set_overline(false);
         res.set_strikethrough(false);
@@ -669,9 +669,7 @@ impl TeenyString {
         let len = bytes.len();
         let width = width.unwrap_or_else(|| grapheme_column_width(s, unicode_version));
 
-        if len < std::mem::size_of::<u64>() {
-            debug_assert!(width < 3);
-
+        if len < std::mem::size_of::<u64>() && width < 3 {
             let mut word = 0u64;
             unsafe {
                 std::ptr::copy_nonoverlapping(
@@ -901,7 +899,7 @@ impl UnicodeVersion {
     fn width(&self, c: WcWidth) -> usize {
         // Special case for symbol fonts that are naughtly and use
         // the unassigned range instead of the private use range.
-        // <https://github.com/wez/wezterm/issues/1864>
+        // <https://github.com/wezterm/wezterm/issues/1864>
         if c == WcWidth::Unassigned {
             1
         } else if c == WcWidth::Ambiguous && self.ambiguous_are_wide {

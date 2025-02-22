@@ -440,7 +440,7 @@ impl GlState {
                 std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "true");
             }
             for path in &paths {
-                match libloading::Library::new(path) {
+                match unsafe { libloading::Library::new(path) } {
                     Ok(lib) => match EglWrapper::load_egl(lib) {
                         Ok(egl) => match func(egl) {
                             Ok(result) => {
@@ -658,6 +658,10 @@ impl GlState {
 }
 
 unsafe impl glium::backend::Backend for GlState {
+    fn resize(&self, _: (u32, u32)) {
+        todo!()
+    }
+
     fn swap_buffers(&self) -> Result<(), glium::SwapBuffersError> {
         let res = unsafe {
             self.connection

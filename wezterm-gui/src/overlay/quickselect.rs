@@ -4,7 +4,8 @@ use config::keyassignment::{ClipboardCopyDestination, QuickSelectArguments, Scro
 use config::ConfigHandle;
 use mux::domain::DomainId;
 use mux::pane::{
-    ForEachPaneLogicalLine, LogicalLine, Pane, PaneId, Pattern, SearchResult, WithPaneLines,
+    CachePolicy, ForEachPaneLogicalLine, LogicalLine, Pane, PaneId, Pattern, SearchResult,
+    WithPaneLines,
 };
 use mux::renderable::*;
 use parking_lot::{MappedMutexGuard, Mutex};
@@ -26,7 +27,7 @@ const PATTERNS: [&str; 14] = [
     // markdown_url
     r"\[[^]]*\]\(([^)]+)\)",
     // url
-    r"(?:https?://|git@|git://|ssh://|ftp://|file:///)\S+",
+    r"(?:https?://|git@|git://|ssh://|ftp://|file://)\S+",
     // diff_a
     r"--- a/(\S+)",
     // diff_b
@@ -34,7 +35,7 @@ const PATTERNS: [&str; 14] = [
     // docker
     r"sha256:([0-9a-f]{64})",
     // path
-    r"(?:[.\w\-@~]+)?(?:/[.\w\-@]+)+",
+    r"(?:[.\w\-@~]+)?(?:/+[.\w\-@]+)+",
     // color
     r"#[0-9a-fA-F]{6}",
     // uuid
@@ -57,10 +58,32 @@ const PATTERNS: [&str; 14] = [
 /// It is derived from https://github.com/fcsonline/tmux-thumbs/blob/master/src/alphabets.rs
 /// which is Copyright (c) 2019 Ferran Basora and provided under the MIT license
 pub fn compute_labels_for_alphabet(alphabet: &str, num_matches: usize) -> Vec<String> {
-    let alphabet = alphabet
-        .chars()
-        .map(|c| c.to_lowercase().to_string())
-        .collect::<Vec<String>>();
+    compute_labels_for_alphabet_impl(alphabet, num_matches, true)
+}
+
+pub fn compute_labels_for_alphabet_with_preserved_case(
+    alphabet: &str,
+    num_matches: usize,
+) -> Vec<String> {
+    compute_labels_for_alphabet_impl(alphabet, num_matches, false)
+}
+
+fn compute_labels_for_alphabet_impl(
+    alphabet: &str,
+    num_matches: usize,
+    make_lowercase: bool,
+) -> Vec<String> {
+    let alphabet = if make_lowercase {
+        alphabet
+            .chars()
+            .map(|c| c.to_lowercase().to_string())
+            .collect::<Vec<String>>()
+    } else {
+        alphabet
+            .chars()
+            .map(|c| c.to_string())
+            .collect::<Vec<String>>()
+    };
     // Prefer to use single character matches to represent everything
     let mut primary = alphabet.clone();
     let mut secondary = vec![];
@@ -142,6 +165,30 @@ mod alphabet_test {
         assert_eq!(
             compute_labels_for_alphabet("ab", 5),
             vec!["aa", "ab", "ba", "bb"]
+        );
+    }
+
+    #[test]
+    fn composed_capital() {
+        assert_eq!(
+            compute_labels_for_alphabet_with_preserved_case("AB", 4),
+            vec!["AA", "AB", "BA", "BB"]
+        );
+    }
+
+    #[test]
+    fn composed_mixed() {
+        assert_eq!(
+            compute_labels_for_alphabet_with_preserved_case("aA", 4),
+            vec!["aa", "aA", "Aa", "AA"]
+        );
+    }
+
+    #[test]
+    fn lowercase_alphabet_equal() {
+        assert_eq!(
+            compute_labels_for_alphabet_with_preserved_case("abc123", 12),
+            compute_labels_for_alphabet("abc123", 12)
         );
     }
 }
@@ -300,6 +347,7 @@ impl Pane for QuickSelectOverlay {
     }
 
     fn key_down(&self, key: KeyCode, mods: KeyModifiers) -> anyhow::Result<()> {
+        let mods = mods.remove_positional_mods();
         match (key, mods) {
             (KeyCode::Escape, KeyModifiers::NONE) => self.renderer.lock().close(),
             (KeyCode::UpArrow, KeyModifiers::NONE)
@@ -425,8 +473,8 @@ impl Pane for QuickSelectOverlay {
         self.delegate.set_clipboard(clipboard)
     }
 
-    fn get_current_working_dir(&self) -> Option<Url> {
-        self.delegate.get_current_working_dir()
+    fn get_current_working_dir(&self, policy: CachePolicy) -> Option<Url> {
+        self.delegate.get_current_working_dir(policy)
     }
 
     fn get_cursor_position(&self) -> StableCursorPosition {
@@ -866,6 +914,7 @@ impl QuickSelectRenderable {
 
         let pane_id = self.delegate.pane_id();
         let action = self.args.action.clone();
+        let skip_action_on_paste = self.args.skip_action_on_paste;
         self.window
             .notify(TermWindowNotif::Apply(Box::new(move |term_window| {
                 let mux = mux::Mux::get();
@@ -894,7 +943,9 @@ impl QuickSelectRenderable {
                             let _ = pane.send_paste(&text);
                         }
                         if let Some(action) = action {
-                            let _ = term_window.perform_key_assignment(&pane, &action);
+                            if !paste || !skip_action_on_paste {
+                                let _ = term_window.perform_key_assignment(&pane, &action);
+                            }
                         } else {
                             term_window.copy_to_clipboard(
                                 ClipboardCopyDestination::ClipboardAndPrimarySelection,

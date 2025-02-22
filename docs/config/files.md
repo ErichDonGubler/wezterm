@@ -8,14 +8,8 @@ contents:
 -- Pull in the wezterm API
 local wezterm = require 'wezterm'
 
--- This table will hold the configuration.
-local config = {}
-
--- In newer versions of wezterm, use the config_builder which will
--- help provide clearer error messages
-if wezterm.config_builder then
-  config = wezterm.config_builder()
-end
+-- This will hold the configuration.
+local config = wezterm.config_builder()
 
 -- This is where you actually apply your config choices
 
@@ -33,7 +27,7 @@ configuration file using the logic shown below.
 
 !!! tip
     The recommendation is to place your configuration file at `$HOME/.wezterm.lua`
-    (`%HOME%/.wezterm.lua` on Windows) to get started.
+    (`%USERPROFILE%/.wezterm.lua` on Windows) to get started.
 
 More complex configurations that need to span multiple files can be placed in
 `$XDG_CONFIG_HOME/wezterm/wezterm.lua` (for X11/Wayland) or
