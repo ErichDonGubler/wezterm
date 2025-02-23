@@ -30,7 +30,7 @@ where
 }
 
 #[cfg(feature = "use_serde")]
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::trivially_copy_pass_by_ref))]
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn serialize_notnan<S>(value: &NotNan<f32>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -284,6 +284,16 @@ impl ImageDataType {
         }
     }
 
+    /// Black pixels
+    pub fn placeholder() -> Self {
+        let mut data = vec![];
+        let size = 8;
+        for _ in 0..size * size {
+            data.extend_from_slice(&[0, 0, 0, 0xff]);
+        }
+        ImageDataType::new_single_frame(size, size, data)
+    }
+
     pub fn hash_bytes(bytes: &[u8]) -> [u8; 32] {
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
@@ -334,7 +344,7 @@ impl ImageDataType {
     pub fn dimensions(&self) -> Result<(u32, u32), InternalError> {
         fn dimensions_for_data(data: &[u8]) -> image::ImageResult<(u32, u32)> {
             let reader =
-                image::io::Reader::new(std::io::Cursor::new(data)).with_guessed_format()?;
+                image::ImageReader::new(std::io::Cursor::new(data)).with_guessed_format()?;
             let (width, height) = reader.into_dimensions()?;
 
             Ok((width, height))
@@ -377,10 +387,18 @@ impl ImageDataType {
                         return Self::EncodedFile(data);
                     }
                 };
+                let cursor = std::io::Cursor::new(&*data);
                 match format {
-                    ImageFormat::Gif => image::codecs::gif::GifDecoder::new(&*data)
+                    ImageFormat::Gif => image::codecs::gif::GifDecoder::new(cursor)
                         .and_then(|decoder| decoder.into_frames().collect_frames())
-                        .and_then(|frames| Ok(Self::decode_frames(frames)))
+                        .and_then(|frames| {
+                            if frames.is_empty() {
+                                log::error!("decoded image has 0 frames, using placeholder");
+                                Ok(Self::placeholder())
+                            } else {
+                                Ok(Self::decode_frames(frames))
+                            }
+                        })
                         .unwrap_or_else(|err| {
                             log::error!(
                                 "Unable to parse animated gif: {:#}, trying as single frame",
@@ -389,12 +407,19 @@ impl ImageDataType {
                             Self::decode_single(data)
                         }),
                     ImageFormat::Png => {
-                        let decoder = match image::codecs::png::PngDecoder::new(&*data) {
+                        let decoder = match image::codecs::png::PngDecoder::new(cursor) {
                             Ok(d) => d,
                             _ => return Self::EncodedFile(data),
                         };
-                        if decoder.is_apng() {
-                            match decoder.apng().into_frames().collect_frames() {
+                        if decoder.is_apng().unwrap_or(false) {
+                            match decoder
+                                .apng()
+                                .and_then(|d| d.into_frames().collect_frames())
+                            {
+                                Ok(frames) if frames.is_empty() => {
+                                    log::error!("decoded image has 0 frames, using placeholder");
+                                    Self::placeholder()
+                                }
                                 Ok(frames) => Self::decode_frames(frames),
                                 _ => Self::EncodedFile(data),
                             }
@@ -403,11 +428,15 @@ impl ImageDataType {
                         }
                     }
                     ImageFormat::WebP => {
-                        let decoder = match image::codecs::webp::WebPDecoder::new(&*data) {
+                        let decoder = match image::codecs::webp::WebPDecoder::new(cursor) {
                             Ok(d) => d,
                             _ => return Self::EncodedFile(data),
                         };
                         match decoder.into_frames().collect_frames() {
+                            Ok(frames) if frames.is_empty() => {
+                                log::error!("decoded image has 0 frames, using placeholder");
+                                Self::placeholder()
+                            }
                             Ok(frames) => Self::decode_frames(frames),
                             _ => Self::EncodedFile(data),
                         }

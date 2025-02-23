@@ -6,12 +6,16 @@ use crate::quad::{
     TripleLayerQuadAllocatorTrait,
 };
 use crate::shapecache::*;
+use crate::termwindow::render::paint::AllowImage;
 use crate::termwindow::{BorrowedShapeCacheKey, RenderState, ShapedInfo, TermWindowNotif};
 use crate::utilsprites::RenderMetrics;
 use ::window::bitmaps::{TextureCoord, TextureRect, TextureSize};
 use ::window::{DeadKeyStatus, PointF, RectF, SizeF, WindowOps};
-use anyhow::anyhow;
-use config::{BoldBrightening, ConfigHandle, DimensionContext, TextStyle, VisualBellTarget};
+use anyhow::{anyhow, Context};
+use config::{
+    BoldBrightening, ConfigHandle, DimensionContext, HorizontalWindowContentAlignment, TextStyle,
+    VerticalWindowContentAlignment, VisualBellTarget,
+};
 use euclid::num::Zero;
 use mux::pane::{Pane, PaneId};
 use mux::renderable::{RenderableDimensions, StableCursorPosition};
@@ -26,7 +30,7 @@ use termwiz::surface::{CursorShape, CursorVisibility, SequenceNo};
 use wezterm_font::shaper::PresentationWidth;
 use wezterm_font::units::{IntPixelLength, PixelLength};
 use wezterm_font::{ClearShapeCache, GlyphInfo, LoadedFont};
-use wezterm_term::color::{ColorAttribute, ColorPalette, RgbColor};
+use wezterm_term::color::{ColorAttribute, ColorPalette};
 use wezterm_term::{CellAttributes, Line, StableRowIndex};
 use window::color::LinearRgba;
 
@@ -71,8 +75,6 @@ pub struct LineQuadCacheKey {
 }
 
 pub struct LineQuadCacheValue {
-    /// For resolving hash collisions
-    pub line: Line,
     pub expires: Option<Instant>,
     pub layers: HeapQuadAllocator,
     // Only set if the line contains any hyperlinks, so
@@ -85,9 +87,7 @@ pub struct LineToElementParams<'a> {
     pub line: &'a Line,
     pub config: &'a ConfigHandle,
     pub palette: &'a ColorPalette,
-    pub stable_line_idx: StableRowIndex,
     pub window_is_transparent: bool,
-    pub cursor: &'a StableCursorPosition,
     pub reverse_video: bool,
     pub shape_key: &'a Option<LineToEleShapeCacheKey>,
 }
@@ -109,8 +109,6 @@ pub struct LineToElementShapeItem {
 }
 
 pub struct LineToElementShape {
-    pub attrs: CellAttributes,
-    pub style: TextStyle,
     pub underline_tex_rect: TextureRect,
     pub fg_color: LinearRgba,
     pub bg_color: LinearRgba,
@@ -357,9 +355,43 @@ impl crate::TermWindow {
             .window_padding
             .left
             .evaluate_as_pixels(h_context);
+        let padding_right = self.config.window_padding.right;
         let padding_top = self.config.window_padding.top.evaluate_as_pixels(v_context);
+        let padding_bottom = self
+            .config
+            .window_padding
+            .bottom
+            .evaluate_as_pixels(v_context);
 
-        (padding_left, padding_top)
+        let horizontal_gap = self.dimensions.pixel_width as f32
+            - self.terminal_size.pixel_width as f32
+            - padding_left
+            - if self.show_scroll_bar && padding_right.is_zero() {
+                h_context.pixel_cell
+            } else {
+                padding_right.evaluate_as_pixels(h_context)
+            };
+        let vertical_gap = self.dimensions.pixel_height as f32
+            - self.terminal_size.pixel_height as f32
+            - padding_top
+            - padding_bottom
+            - if self.show_tab_bar {
+                self.tab_bar_pixel_height().unwrap_or(0.)
+            } else {
+                0.
+            };
+        let left_gap = match self.config.window_content_alignment.horizontal {
+            HorizontalWindowContentAlignment::Left => 0.,
+            HorizontalWindowContentAlignment::Center => horizontal_gap / 2.,
+            HorizontalWindowContentAlignment::Right => horizontal_gap,
+        };
+        let top_gap = match self.config.window_content_alignment.vertical {
+            VerticalWindowContentAlignment::Top => 0.,
+            VerticalWindowContentAlignment::Center => vertical_gap / 2.,
+            VerticalWindowContentAlignment::Bottom => vertical_gap,
+        };
+
+        (padding_left + left_gap, padding_top + top_gap)
     }
 
     fn resolve_lock_glyph(
@@ -417,7 +449,7 @@ impl crate::TermWindow {
         hsv: Option<config::HsbTransform>,
         glyph_color: LinearRgba,
     ) -> anyhow::Result<()> {
-        if !self.allow_images {
+        if self.allow_images == AllowImage::No {
             return Ok(());
         }
 
@@ -432,10 +464,11 @@ impl crate::TermWindow {
             padding.next_power_of_two()
         };
 
-        let (sprite, next_due) = gl_state
+        let (sprite, next_due, _load_state) = gl_state
             .glyph_cache
             .borrow_mut()
-            .cached_image(image.image_data(), Some(padding))?;
+            .cached_image(image.image_data(), Some(padding), self.allow_images)
+            .context("cached_image")?;
         self.update_next_frame_time(next_due);
         let width = sprite.coords.size.width;
         let height = sprite.coords.size.height;
@@ -786,7 +819,7 @@ impl crate::TermWindow {
                 }
             }
         };
-        metrics::histogram!("cached_cluster_shape", shape_resolve_start.elapsed());
+        metrics::histogram!("cached_cluster_shape").record(shape_resolve_start.elapsed());
         log::trace!(
             "shape_resolve for cluster len {} -> elapsed {:?}",
             cluster.text.len(),
@@ -849,15 +882,6 @@ impl crate::TermWindow {
         self.line_state_cache.borrow_mut().put(id, state);
         shape_hash
     }
-}
-
-pub fn rgbcolor_to_window_color(color: RgbColor) -> LinearRgba {
-    rgbcolor_alpha_to_window_color(color, 1.0)
-}
-
-pub fn rgbcolor_alpha_to_window_color(color: RgbColor, alpha: f32) -> LinearRgba {
-    let (red, green, blue, _) = color.to_linear_tuple_rgba().tuple();
-    LinearRgba::with_components(red, green, blue, alpha)
 }
 
 fn resolve_fg_color_attr(

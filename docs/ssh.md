@@ -31,6 +31,7 @@ be used to specify which ssh library is used.
 wezterm is now able to parse `~/.ssh/config` and `/etc/ssh/ssh_config`
 and respects the following options:
 
+* `IdentityAgent`
 * `IdentityFile`
 * `Hostname`
 * `User`
@@ -53,6 +54,10 @@ All other options are parsed but have no effect.  Notably, neither `Match` or
 {{since('20210814-124438-54e29167:')}}
 
 `Include` is now supported.
+
+{{since('nightly')}}
+
+`ProxyUseFDpass` is now supported. (But not on Microsoft Windows).
 
 ### CLI Overrides
 

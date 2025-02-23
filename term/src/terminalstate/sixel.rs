@@ -89,7 +89,7 @@ impl TerminalState {
                     // Looking at red, we need to rotate left by 120 to
                     // go from sixel red to standard hsl red.
                     // Negative values wrap around the circle.
-                    // https://github.com/wez/wezterm/issues/775
+                    // https://github.com/wezterm/wezterm/issues/775
                     let angle = (*hue_angle as f64) - 120.0;
                     let angle = if angle < 0. { 360.0 + angle } else { angle };
                     let c = csscolorparser::Color::from_hsla(
@@ -132,14 +132,14 @@ impl TerminalState {
         if let Err(err) = self.assign_image_to_cells(ImageAttachParams {
             image_width: width,
             image_height: height,
-            source_width: width,
-            source_height: height,
+            source_width: None,
+            source_height: None,
             rows: None,
             columns: None,
             source_origin_x: 0,
             source_origin_y: 0,
-            padding_left: 0,
-            padding_top: 0,
+            cell_padding_left: 0,
+            cell_padding_top: 0,
             data: image_data,
             style: ImageAttachStyle::Sixel,
             z_index: 0,

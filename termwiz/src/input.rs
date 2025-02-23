@@ -262,6 +262,9 @@ impl KeyCode {
             // We only want down events
             return Ok(String::new());
         }
+        // We are encoding the key as an xterm-compatible sequence, which does not support
+        // positional modifiers.
+        let mods = mods.remove_positional_mods();
 
         use KeyCode::*;
 
@@ -497,6 +500,18 @@ impl KeyCode {
                         10 => "\x1b[21",
                         11 => "\x1b[23",
                         12 => "\x1b[24",
+                        13 => "\x1b[25",
+                        14 => "\x1b[26",
+                        15 => "\x1b[28",
+                        16 => "\x1b[29",
+                        17 => "\x1b[31",
+                        18 => "\x1b[32",
+                        19 => "\x1b[33",
+                        20 => "\x1b[34",
+                        21 => "\x1b[42",
+                        22 => "\x1b[43",
+                        23 => "\x1b[44",
+                        24 => "\x1b[45",
                         _ => bail!("unhandled fkey number {}", n),
                     };
                     let encoded_mods = mods.encode_xterm();
@@ -1327,7 +1342,7 @@ impl InputParser {
                         // end marker in 8K, 16K, 24K etc. of text until the final buffer is received.
                         // Ensure that we use saturating math here for the case where the amount
                         // of buffered data after the begin paste is smaller than the end paste marker
-                        // <https://github.com/wez/wezterm/pull/1832>
+                        // <https://github.com/wezterm/wezterm/pull/1832>
                         self.state =
                             InputState::Pasting(self.buf.len().saturating_sub(end_paste.len()));
                         return;
@@ -1886,5 +1901,36 @@ mod test {
                 .unwrap(),
             "\u{1b}[1;2F".to_string()
         );
+    }
+
+    #[test]
+    fn encode_tab_with_modifiers() {
+        let mode = KeyCodeEncodeModes {
+            encoding: KeyboardEncoding::Xterm,
+            newline_mode: false,
+            application_cursor_keys: false,
+            modify_other_keys: None,
+        };
+
+        let mods_to_result = [
+            (Modifiers::SHIFT, "\u{1b}[Z"),
+            (Modifiers::SHIFT | Modifiers::LEFT_SHIFT, "\u{1b}[Z"),
+            (Modifiers::SHIFT | Modifiers::RIGHT_SHIFT, "\u{1b}[Z"),
+            (Modifiers::CTRL, "\u{1b}[9;5u"),
+            (Modifiers::CTRL | Modifiers::LEFT_CTRL, "\u{1b}[9;5u"),
+            (Modifiers::CTRL | Modifiers::RIGHT_CTRL, "\u{1b}[9;5u"),
+            (
+                Modifiers::SHIFT | Modifiers::CTRL | Modifiers::LEFT_CTRL | Modifiers::LEFT_SHIFT,
+                "\u{1b}[1;5Z",
+            ),
+        ];
+        for (mods, result) in mods_to_result {
+            assert_eq!(
+                KeyCode::Tab.encode(mods, mode, true).unwrap(),
+                result,
+                "{:?}",
+                mods
+            );
+        }
     }
 }

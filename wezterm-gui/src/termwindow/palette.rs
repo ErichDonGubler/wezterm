@@ -1,23 +1,27 @@
 use crate::commands::{CommandDef, ExpandedCommand};
+use crate::overlay::selector::{matcher_pattern, matcher_score};
 use crate::termwindow::box_model::*;
 use crate::termwindow::modal::Modal;
 use crate::termwindow::render::corners::{
     BOTTOM_LEFT_ROUNDED_CORNER, BOTTOM_RIGHT_ROUNDED_CORNER, TOP_LEFT_ROUNDED_CORNER,
     TOP_RIGHT_ROUNDED_CORNER,
 };
-use crate::termwindow::{DimensionContext, TermWindow};
+use crate::termwindow::{DimensionContext, GuiWin, TermWindow};
 use crate::utilsprites::RenderMetrics;
 use config::keyassignment::KeyAssignment;
 use config::Dimension;
 use frecency::Frecency;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
+use luahelper::{from_lua_value_dynamic, impl_lua_conversion_dynamic};
+use mux_lua::MuxPane;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::cell::{Ref, RefCell};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use termwiz::nerdfonts::NERD_FONTS;
+use wezterm_dynamic::{FromDynamic, ToDynamic};
 use wezterm_term::{KeyCode, KeyModifiers, MouseEvent};
 use window::color::LinearRgba;
 use window::Modifiers;
@@ -44,7 +48,7 @@ struct Recent {
 }
 
 fn recent_file_name() -> PathBuf {
-    config::RUNTIME_DIR.join("recent-commands.json")
+    config::DATA_DIR.join("recent-commands.json")
 }
 
 fn load_recents() -> anyhow::Result<Vec<Recent>> {
@@ -75,8 +79,57 @@ fn save_recent(command: &ExpandedCommand) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_commands(filter_copy_mode: bool) -> Vec<ExpandedCommand> {
+#[derive(Debug, Clone, FromDynamic, ToDynamic)]
+pub struct UserPaletteEntry {
+    pub brief: String,
+    pub doc: Option<String>,
+    pub action: KeyAssignment,
+    pub icon: Option<String>,
+}
+impl_lua_conversion_dynamic!(UserPaletteEntry);
+
+fn build_commands(
+    gui_window: GuiWin,
+    pane: Option<MuxPane>,
+    filter_copy_mode: bool,
+) -> Vec<ExpandedCommand> {
     let mut commands = CommandDef::actions_for_palette_and_menubar(&config::configuration());
+
+    match config::run_immediate_with_lua_config(|lua| {
+        let mut entries: Vec<UserPaletteEntry> = vec![];
+
+        if let Some(lua) = lua {
+            let result = config::lua::emit_sync_callback(
+                &*lua,
+                ("augment-command-palette".to_string(), (gui_window, pane)),
+            )?;
+
+            if !matches!(&result, mlua::Value::Nil) {
+                entries = from_lua_value_dynamic(result)?;
+            }
+        }
+
+        Ok(entries)
+    }) {
+        Ok(entries) => {
+            for entry in entries {
+                commands.push(ExpandedCommand {
+                    brief: entry.brief.into(),
+                    doc: match entry.doc {
+                        Some(doc) => doc.into(),
+                        None => "".into(),
+                    },
+                    action: entry.action,
+                    keys: vec![],
+                    menubar: &[],
+                    icon: entry.icon.map(Cow::Owned),
+                });
+            }
+        }
+        Err(err) => {
+            log::warn!("augment-command-palette: {err:#}");
+        }
+    }
 
     commands.retain(|cmd| {
         if filter_copy_mode {
@@ -98,7 +151,7 @@ fn build_commands(filter_copy_mode: bool) -> Vec<ExpandedCommand> {
         match (scores.get(&*a.brief), scores.get(&*b.brief)) {
             // Want descending frecency score, so swap a<->b
             // for the compare here
-            (Some(a), Some(b)) => match b.partial_cmp(&a) {
+            (Some(a), Some(b)) => match b.partial_cmp(a) {
                 Some(Ordering::Equal) | None => {}
                 Some(ordering) => return ordering,
             },
@@ -119,18 +172,18 @@ fn build_commands(filter_copy_mode: bool) -> Vec<ExpandedCommand> {
 #[derive(Debug)]
 struct MatchResult {
     row_idx: usize,
-    score: i64,
+    score: u32,
 }
 
 impl MatchResult {
-    fn new(row_idx: usize, score: i64, selection: &str, commands: &[ExpandedCommand]) -> Self {
+    fn new(row_idx: usize, score: u32, selection: &str, commands: &[ExpandedCommand]) -> Self {
         Self {
             row_idx,
             score: if commands[row_idx].brief == selection {
                 // Pump up the score for an exact match, otherwise
                 // the order may be undesirable if there are a lot
                 // of candidates with the same score
-                i64::max_value()
+                u32::max_value()
             } else {
                 score
             },
@@ -142,17 +195,16 @@ fn compute_matches(selection: &str, commands: &[ExpandedCommand]) -> Vec<usize> 
     if selection.is_empty() {
         commands.iter().enumerate().map(|(idx, _)| idx).collect()
     } else {
-        let matcher = SkimMatcherV2::default();
+        let pattern = matcher_pattern(selection);
 
         let start = std::time::Instant::now();
         let mut scores: Vec<MatchResult> = commands
-            .iter()
+            .par_iter()
             .enumerate()
             .filter_map(|(row_idx, entry)| {
                 let group = entry.menubar.join(" ");
                 let text = format!("{group}: {}. {} {:?}", entry.brief, entry.doc, entry.action);
-                matcher
-                    .fuzzy_match(&text, selection)
+                matcher_score(&pattern, &text)
                     .map(|score| MatchResult::new(row_idx, score, selection, commands))
             })
             .collect();
@@ -175,7 +227,12 @@ impl CommandPalette {
                     .is_none()
             })
             .unwrap_or(true);
-        let commands = build_commands(filter_copy_mode);
+
+        let mux_pane = term_window
+            .get_active_pane_or_overlay()
+            .map(|pane| MuxPane(pane.pane_id()));
+
+        let commands = build_commands(GuiWin::new(term_window), mux_pane, filter_copy_mode);
 
         Self {
             element: RefCell::new(None),
@@ -242,7 +299,7 @@ impl CommandPalette {
             };
 
             let icon = match &command.icon {
-                Some(nf) => NERD_FONTS.get(nf).unwrap_or_else(|| {
+                Some(nf) => NERD_FONTS.get(nf.as_ref()).unwrap_or_else(|| {
                     log::error!("nerdfont {nf} not found in NERD_FONTS");
                     &'?'
                 }),
@@ -317,7 +374,7 @@ impl CommandPalette {
                 let separator = if term_window.config.ui_key_cap_rendering
                     == ::window::UIKeyCapRendering::AppleSymbols
                 {
-                    ""
+                    " "
                 } else {
                     "-"
                 };
@@ -509,7 +566,7 @@ impl CommandPalette {
         let mut row = self.selected_row.borrow_mut();
         *row = row.saturating_add(1).min(limit);
         let mut top_row = self.top_row.borrow_mut();
-        if *row + *top_row > max_rows_on_screen - 1 {
+        if *row > *top_row + max_rows_on_screen - 1 {
             *top_row = row.saturating_sub(max_rows_on_screen - 1);
         }
     }
@@ -606,9 +663,12 @@ impl Modal for CommandPalette {
             .expect("to resolve char selection font");
         let metrics = RenderMetrics::with_font_metrics(&font.metrics());
 
-        let max_rows_on_screen = ((term_window.dimensions.pixel_height * 8 / 10)
+        let mut max_rows_on_screen = ((term_window.dimensions.pixel_height * 8 / 10)
             / metrics.cell_size.height as usize)
             - 2;
+        if let Some(size) = term_window.config.command_palette_rows {
+            max_rows_on_screen = max_rows_on_screen.min(size);
+        }
         *self.max_rows_on_screen.borrow_mut() = max_rows_on_screen;
 
         let rebuild_matches = results
